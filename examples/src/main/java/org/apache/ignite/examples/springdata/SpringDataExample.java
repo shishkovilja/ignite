@@ -134,7 +134,7 @@ public class SpringDataExample {
 
         System.out.println("\n>>> Persons list for specific salaries: ");
 
-        while (persons.hasNext())
+        while (persons1.hasNext())
             System.out.println("   >>>   " + persons1.next());
     }
 
