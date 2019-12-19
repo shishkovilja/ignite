@@ -53,8 +53,8 @@ public interface PersonRepository extends IgniteRepository<Person, Long> {
      * @param salaries List of given salaries
      * @return A list of Persons with salaries from the given list.
      */
-    @Query(value = "SELECT * FROM Person WHERE salary IN (?)")
-    public List<Person> findPersonBySalaryIn(List<Double> salaries);
+    @Query("SELECT * FROM Person WHERE salary IN (:sal)")
+    public List<Person> findPersonBySalaryIn(@Param("sal") List<Double> salaries);
 
     /**
      * Getting ids of all the Person satisfying the custom query from {@link Query} annotation.
