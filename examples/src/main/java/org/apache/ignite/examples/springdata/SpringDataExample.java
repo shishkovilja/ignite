@@ -125,6 +125,18 @@ public class SpringDataExample {
 
         while (persons.hasNext())
             System.out.println("   >>>   " + persons.next());
+
+        // Find by salaries
+        ArrayList<Double> salaries = new ArrayList<>();
+        salaries.add(15000.0);
+        salaries.add(13000.0);
+
+        Iterator<Person> persons1 = repo.findPersonBySalaryIn(salaries).iterator();
+
+        System.out.println("\n>>> Persons list for specific salaries: ");
+
+        while (persons1.hasNext())
+            System.out.println("   >>>   " + persons1.next());
     }
 
     /**

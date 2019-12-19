@@ -24,6 +24,7 @@ import org.apache.ignite.springdata20.repository.IgniteRepository;
 import org.apache.ignite.springdata20.repository.config.Query;
 import org.apache.ignite.springdata20.repository.config.RepositoryConfig;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Apache Ignite Spring Data repository backed by Ignite Person's cache.
@@ -55,5 +56,14 @@ public interface PersonRepository extends IgniteRepository<Person, Long> {
      */
     @Query("SELECT id FROM Person WHERE orgId > ?")
     public List<Long> selectId(long orgId, Pageable pageable);
+
+    /**
+     * Return Person list, having salaries from the given list.
+     *
+     * @param salaries List of given salaries
+     * @return A list of Persons with salaries from the given list.
+     */
+    @Query("SELECT * FROM Person WHERE salary IN (:sal)")
+    public List<Person> findPersonBySalaryIn(@Param("sal") List<Double> salaries);
 }
 
