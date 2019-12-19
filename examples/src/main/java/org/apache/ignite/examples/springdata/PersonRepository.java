@@ -24,6 +24,7 @@ import org.apache.ignite.springdata20.repository.IgniteRepository;
 import org.apache.ignite.springdata20.repository.config.Query;
 import org.apache.ignite.springdata20.repository.config.RepositoryConfig;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Apache Ignite Spring Data repository backed by Ignite Person's cache.
@@ -45,6 +46,15 @@ public interface PersonRepository extends IgniteRepository<Person, Long> {
      * @return Person that satisfy the query.
      */
     public Cache.Entry<Long, Person> findTopByLastNameLike(String name);
+
+    /**
+     * Return Person list, having salaries from the given list.
+     *
+     * @param salaries List of given salaries
+     * @return A list of Persons with salaries from the given list.
+     */
+    @Query(value = "SELECT * FROM Person WHERE salary IN (?)")
+    public List<Person> findPersonBySalaryIn(List<Double> salaries);
 
     /**
      * Getting ids of all the Person satisfying the custom query from {@link Query} annotation.
