@@ -17,6 +17,7 @@ import org.apache.ignite.internal.IgniteInternalFuture;
 import org.apache.ignite.internal.processors.cache.GridCacheUtils;
 import org.apache.ignite.internal.processors.cache.IgniteInternalCache;
 import org.apache.ignite.internal.processors.cache.verify.IdleVerifyResultV2;
+import org.apache.ignite.internal.util.typedef.G;
 import org.apache.ignite.internal.visor.VisorTaskArgument;
 import org.apache.ignite.internal.visor.verify.CacheFilterEnum;
 import org.apache.ignite.internal.visor.verify.VisorIdleVerifyTaskArg;
@@ -75,22 +76,29 @@ public class MyPartitionDivergenceReproducer extends GridCommonAbstractTest {
      *
      */
     @Test
-    public void testDivergencyWhileNodesStart() throws Exception {
-        final int GRIDS_CNT = 3;
+    public void testWhileNodesStart() throws Exception {
+        final int INIT_GRIDS_CNT = 2;
+        final int EXTRA_GRIDS_CNT = 5;
 
-        startGridsMultiThreaded(GRIDS_CNT);
+        startGrids(INIT_GRIDS_CNT);
 
-        for (int i = 0; i < GRIDS_CNT; i++)
-            assertTrue(grid(i).context().cache().context().tm().activeTransactions().isEmpty());
+        runAsync(() -> startGridsMultiThreaded(INIT_GRIDS_CNT, EXTRA_GRIDS_CNT));
 
-        checkIdleVerify(GRIDS_CNT);
+        do {
+            int gridsCnt = G.allGrids().size();
+
+            for (int i = 0; i < gridsCnt; i++)
+                assertTrue(grid(i).context().cache().context().tm().activeTransactions().isEmpty());
+
+            checkIdleVerify(gridsCnt);
+        } while (G.allGrids().size() < INIT_GRIDS_CNT + EXTRA_GRIDS_CNT);
     }
 
     /**
      *
      */
     @Test
-    public void testDivergencyWithTxWhileNodesStart_noWaitForTx() throws Exception {
+    public void testWithTxWhileNodesStart_noWaitForTx() throws Exception {
         doTxWhileNodesStart(false);
     }
 
@@ -98,7 +106,7 @@ public class MyPartitionDivergenceReproducer extends GridCommonAbstractTest {
      *
      */
     @Test
-    public void testDivergencyWithTxWhileNodesStart_withWaitForTx() throws Exception {
+    public void testWithTxWhileNodesStart_withWaitForTx() throws Exception {
         doTxWhileNodesStart(true);
     }
 
