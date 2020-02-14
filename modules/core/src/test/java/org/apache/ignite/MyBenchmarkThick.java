@@ -28,10 +28,10 @@ public class MyBenchmarkThick extends GridCommonAbstractTest {
     public static final int SERVERS_CNT = 2;
 
     /** Clients count. */
-    public static final int CLIENTS_CNT = 4;
+    public static final int CLIENTS_CNT = 2;
 
     /** Tasks count. */
-    public static final int TASKS_CNT = 24;
+    public static final int TASKS_CNT = 16;
 
     /** Items count. */
     private static final int ITEMS_CNT = 3_000_000;
