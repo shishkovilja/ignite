@@ -35,7 +35,7 @@ import org.apache.ignite.testframework.junits.common.GridCommonAbstractTest;
 import org.junit.Test;
 
 /**
- *
+ * Benchmark for getAll operations.
  */
 public class MyGetAllBenchmark extends GridCommonAbstractTest {
     /** Region size. */
@@ -55,15 +55,12 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
 
     /** {@inheritDoc} */
     @Override protected void beforeTestsStarted() throws Exception {
-//        cleanPersistenceDir();
-
         prepareReportFile();
 
         IgniteEx grid = startGrid(0);
 
         grid.cluster().state(ClusterState.ACTIVE);
 
-        // TODO Change this???
         for (int i = 0; i < CACHES_CNT; i++) {
             if (grid.cache(DEFAULT_CACHE_NAME + i).size() < CACHE_SIZE) {
                 fillCaches();
@@ -125,11 +122,17 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
         }
     }
 
+    /**
+     * Get thin client configuration.
+     */
     private ClientConfiguration getClientConfiguration() {
         return new ClientConfiguration()
             .setAddresses(Config.SERVER);
     }
 
+    /**
+     * Fill all caches with data.
+     */
     private void fillCaches() {
         log.warning(">>>>>> Filling caches...");
 
@@ -153,6 +156,9 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
         log.warning(">>>>>> Filling finished.");
     }
 
+    /**
+     * Prepare report csv file.
+     */
     private void prepareReportFile() throws IgniteCheckedException {
         try {
             reportFile = new File(Paths.get(U.defaultWorkDirectory()).resolve("report.csv").toUri());
@@ -163,7 +169,7 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
                 Files.createFile(reportFile.toPath());
 
                 try (PrintWriter writer = new PrintWriter(new FileOutputStream(reportFile), true)) {
-                    writer.println("Iteration;With misses;Cache;Elapsed;Batch size;Obtained size");
+                    writer.println("Timestamp;With misses;Cache;Elapsed;Batch size;Obtained size");
                 }
             }
         }
@@ -196,8 +202,12 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
         return cfg;
     }
 
+    /**
+     * Get cache configurations.
+     */
     private CacheConfiguration<String, Integer>[] getCacheConfigurations() {
-        CacheConfiguration[] cacheCfgs = new CacheConfiguration[CACHES_CNT];
+        CacheConfiguration<String, Integer>[] cacheCfgs = (CacheConfiguration<String, Integer>[])
+            new CacheConfiguration[CACHES_CNT];
 
         for (int i = 0; i < CACHES_CNT; i++) {
             CacheConfiguration<String, Integer> cCfg = new CacheConfiguration<String, Integer>()
@@ -208,7 +218,7 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
             cacheCfgs[i] = cCfg;
         }
 
-        return (CacheConfiguration<String, Integer>[])cacheCfgs;
+        return cacheCfgs;
     }
 
     /**
