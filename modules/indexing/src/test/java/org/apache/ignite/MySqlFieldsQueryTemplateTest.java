@@ -87,12 +87,12 @@ public class MySqlFieldsQueryTemplateTest extends GridCommonAbstractTest {
         /** Serial version uid. */
         private static final long serialVersionUID = 3549411668555128248L;
 
-        @QuerySqlField(name = "id")
         /** Id. */
+        @QuerySqlField(name = "id")
         private int id;
 
-        @QuerySqlField(name = "city_id")
         /** City id. */
+        @QuerySqlField(name = "city_id")
         private int cityId;
     }
 
@@ -103,16 +103,16 @@ public class MySqlFieldsQueryTemplateTest extends GridCommonAbstractTest {
         /** Serial version uid. */
         private static final long serialVersionUID = -2461620907231474405L;
 
-        @QuerySqlField
         /** Name. */
+        @QuerySqlField
         private String name;
 
-        @QuerySqlField
         /** Age. */
+        @QuerySqlField
         private int age;
 
-        @QuerySqlField
         /** Company. */
+        @QuerySqlField
         private String company;
     }
 }
