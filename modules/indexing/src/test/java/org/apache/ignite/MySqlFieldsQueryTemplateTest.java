@@ -1,7 +1,11 @@
 package org.apache.ignite;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import javax.cache.Cache;
 import org.apache.ignite.cache.CacheMode;
 import org.apache.ignite.cache.query.FieldsQueryCursor;
 import org.apache.ignite.cache.query.SqlFieldsQuery;
@@ -19,6 +23,7 @@ import org.apache.ignite.testframework.junits.common.GridCommonAbstractTest;
 import org.junit.Test;
 
 import static org.apache.ignite.cache.CacheAtomicityMode.ATOMIC;
+import static org.apache.ignite.cache.CacheAtomicityMode.TRANSACTIONAL;
 
 /**
  *
@@ -75,6 +80,36 @@ public class MySqlFieldsQueryTemplateTest extends GridCommonAbstractTest {
             log.info(">>>>>> Caches after SQL: " + client.cacheNames());
         }
 
+        IgniteCache<PersonKey, MyPerson> cache = grid.cache("SQL_PULIC_PERSON");
+
+        assertNotNull("Cache not found!", cache);
+
+        CacheConfiguration<PersonKey, MyPerson> cacheCfg = cache.getConfiguration(CacheConfiguration.class);
+
+        assertEquals("Backups count is incorect!", 1, cacheCfg.getBackups());
+        assertEquals("Atomicity mode is incorrect!", TRANSACTIONAL, cacheCfg.getAtomicityMode());
+        assertEquals("Cache mode is incorrect!", CacheMode.PARTITIONED, cacheCfg.getCacheMode());
+
+        PersonKey key = new PersonKey(1, 2);
+        MyPerson person = new MyPerson("John Doe", 30, "John Doe & Co");
+
+        cache.put(key, person);
+
+        Iterator<Cache.Entry<PersonKey, MyPerson>> iter = cache.iterator();
+
+        List<Cache.Entry<PersonKey, MyPerson>> entries = new ArrayList<>();
+
+        while (iter.hasNext())
+            entries.add(iter.next());
+
+        assertEquals("Only one item should be in cache!", 1, entries.size());
+
+        Cache.Entry<PersonKey, MyPerson> entry = entries.get(0);
+
+        assertNotNull("Entry should not be null!", entry);
+        assertEquals("MyPersons should be equal!", person, entry.getValue());
+        assertEquals("Person keys should be equal!", key, entry.getKey());
+
         stopAllGrids();
 
         cleanPersistenceDir();
@@ -94,6 +129,59 @@ public class MySqlFieldsQueryTemplateTest extends GridCommonAbstractTest {
         /** City id. */
         @QuerySqlField(name = "city_id")
         private int cityId;
+
+        /**
+         * @param id Id.
+         * @param cityId City id.
+         */
+        public PersonKey(int id, int cityId) {
+            this.id = id;
+            this.cityId = cityId;
+        }
+
+        /**
+         *
+         */
+        public int getId() {
+            return id;
+        }
+
+        /**
+         * @param id Id.
+         */
+        public void setId(int id) {
+            this.id = id;
+        }
+
+        /**
+         *
+         */
+        public int getCityId() {
+            return cityId;
+        }
+
+        /**
+         * @param cityId City id.
+         */
+        public void setCityId(int cityId) {
+            this.cityId = cityId;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            PersonKey key = (PersonKey)o;
+            return id == key.id &&
+                cityId == key.cityId;
+        }
+
+        /** {@inheritDoc} */
+        @Override public int hashCode() {
+            return Objects.hash(id, cityId);
+        }
     }
 
     /**
@@ -114,6 +202,76 @@ public class MySqlFieldsQueryTemplateTest extends GridCommonAbstractTest {
         /** Company. */
         @QuerySqlField
         private String company;
+
+        /**
+         * @param name Name.
+         * @param age Age.
+         * @param company Company.
+         */
+        public MyPerson(String name, int age, String company) {
+            this.name = name;
+            this.age = age;
+            this.company = company;
+        }
+
+        /**
+         *
+         */
+        public String getName() {
+            return name;
+        }
+
+        /**
+         * @param name Name.
+         */
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        /**
+         *
+         */
+        public int getAge() {
+            return age;
+        }
+
+        /**
+         * @param age Age.
+         */
+        public void setAge(int age) {
+            this.age = age;
+        }
+
+        /**
+         *
+         */
+        public String getCompany() {
+            return company;
+        }
+
+        /**
+         * @param company Company.
+         */
+        public void setCompany(String company) {
+            this.company = company;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean equals(Object o) {
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
+            MyPerson person = (MyPerson)o;
+            return age == person.age &&
+                Objects.equals(name, person.name) &&
+                Objects.equals(company, person.company);
+        }
+
+        /** {@inheritDoc} */
+        @Override public int hashCode() {
+            return Objects.hash(name, age, company);
+        }
     }
 }
 
