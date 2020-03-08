@@ -37,7 +37,7 @@ import org.junit.Test;
 /**
  * Benchmark for getAll operations.
  */
-public class MyGetAllBenchmark extends GridCommonAbstractTest {
+public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
     /** Region size. */
     public static final long REGION_SIZE = 10L << 30;
 
