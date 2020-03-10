@@ -39,7 +39,7 @@ import org.junit.Test;
  */
 public class MyGetAllBenchmark extends GridCommonAbstractTest {
     /** Region size. */
-    public static final long REGION_SIZE = 10L << 30;
+    public static final long REGION_SIZE = 5L << 30;
 
     /** Caches count. */
     private static final int CACHES_CNT = 5;
@@ -162,7 +162,7 @@ public class MyGetAllBenchmark extends GridCommonAbstractTest {
      */
     private void prepareReportFile() throws IgniteCheckedException {
         try {
-            reportFile = new File(Paths.get(U.defaultWorkDirectory()).resolve("report.csv").toUri());
+            reportFile = new File(Paths.get(U.defaultWorkDirectory()).resolve("report-string.csv").toUri());
 
             if (!reportFile.exists()) {
                 log.info(">>>>>> Creating report file");

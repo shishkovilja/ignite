@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.CacheMode;
 import org.apache.ignite.cache.CachePeekMode;
@@ -39,7 +38,7 @@ import org.junit.Test;
  */
 public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
     /** Region size. */
-    public static final long REGION_SIZE = 10L << 30;
+    public static final long REGION_SIZE = 5L << 30;
 
     /** Caches count. */
     private static final int CACHES_CNT = 5;
@@ -54,7 +53,7 @@ public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
     private List<IgniteClient> clients;
 
     /** Client caches. */
-    private List<ClientCache<String, Integer>> clientCaches;
+    private List<ClientCache<Integer, Integer>> clientCaches;
 
     /** {@inheritDoc} */
     @Override protected void beforeTestsStarted() throws Exception {
@@ -138,11 +137,11 @@ public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
         log.warning(">>>>>> Filling caches...");
 
         for (int i = 0; i < CACHES_CNT; i++) {
-            try (IgniteDataStreamer<String, Integer> streamer =
+            try (IgniteDataStreamer<Integer, Integer> streamer =
                      grid(0).dataStreamer(DEFAULT_CACHE_NAME + i)) {
 
                 for (int j = 0; j < CACHE_SIZE; j++)
-                    streamer.addData(Integer.toString(j), j);
+                    streamer.addData(j, j);
 
                 log.info(">>>>>> Cache filled: " + DEFAULT_CACHE_NAME + i);
             }
@@ -162,7 +161,7 @@ public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
      */
     private void prepareReportFile() throws IgniteCheckedException {
         try {
-            reportFile = new File(Paths.get(U.defaultWorkDirectory()).resolve("report.csv").toUri());
+            reportFile = new File(Paths.get(U.defaultWorkDirectory()).resolve("report-int.csv").toUri());
 
             if (!reportFile.exists()) {
                 log.info(">>>>>> Creating report file");
@@ -206,12 +205,12 @@ public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
     /**
      * Get cache configurations.
      */
-    private CacheConfiguration<String, Integer>[] getCacheConfigurations() {
-        CacheConfiguration<String, Integer>[] cacheCfgs = (CacheConfiguration<String, Integer>[])
+    private CacheConfiguration<Integer, Integer>[] getCacheConfigurations() {
+        CacheConfiguration<Integer, Integer>[] cacheCfgs = (CacheConfiguration<Integer, Integer>[])
             new CacheConfiguration[CACHES_CNT];
 
         for (int i = 0; i < CACHES_CNT; i++) {
-            CacheConfiguration<String, Integer> cCfg = new CacheConfiguration<String, Integer>()
+            CacheConfiguration<Integer, Integer> cCfg = new CacheConfiguration<Integer, Integer>()
                 .setName(DEFAULT_CACHE_NAME + i)
                 .setAtomicityMode(CacheAtomicityMode.ATOMIC)
                 .setCacheMode(CacheMode.PARTITIONED);
@@ -256,19 +255,14 @@ public class MyGetAllIntKeysBenchmark extends GridCommonAbstractTest {
                     Set<Integer> usedKeys = new HashSet<>(usedKeysCnt);
 
                     for (int k = 0; k < CACHES_CNT; k++) {
-                        Set<Integer> randomKeys0 = getRandomKeys(usedKeys, batchSize,
+                        Set<Integer> randomKeys = getRandomKeys(usedKeys, batchSize,
                             withMisses && k > CACHES_CNT / 2);
 
-                        Set<String> randomKeys = randomKeys0
-                            .stream()
-                            .map(Object::toString)
-                            .collect(Collectors.toSet());
-
-                        ClientCache<String, Integer> cache = clientCaches.get(k);
+                        ClientCache<Integer, Integer> cache = clientCaches.get(k);
 
                         long started = System.nanoTime();
 
-                        Map<String, Integer> resultMap = cache.getAll(randomKeys);
+                        Map<Integer, Integer> resultMap = cache.getAll(randomKeys);
 
                         long elapsed = System.nanoTime() - started;
 
