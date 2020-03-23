@@ -75,7 +75,7 @@ public class MyLocalCacheDestroyReproducer extends GridCommonAbstractTest {
         for (int i = 0; i < SERVERS_CNT; i++) {
             assertNotNull("Cache should exist on grid#" + i, grid(i).cache(DEFAULT_CACHE_NAME));
 
-            final int cacheSz = (i + 1) * 10;
+            int cacheSz = (i + 1) * 10;
 
             assertEquals("Cache size should be equal to '" + cacheSz + "' on grid#" + i,
                 cacheSz, grid(i).cache(DEFAULT_CACHE_NAME).size(CachePeekMode.ALL));
