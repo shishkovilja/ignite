@@ -1,10 +1,8 @@
 package org.apache.ignite;
 
 import java.util.UUID;
-import org.apache.ignite.cache.CacheAtomicityMode;
 import org.apache.ignite.cache.CacheMode;
 import org.apache.ignite.cache.CachePeekMode;
-import org.apache.ignite.cluster.ClusterState;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.DataStorageConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
@@ -16,7 +14,7 @@ import static org.apache.ignite.configuration.DataStorageConfiguration.DFLT_PAGE
 import static org.apache.ignite.configuration.WALMode.FSYNC;
 
 /**
- * Reproduces
+ * Reproduces imlicit destroy of local caches with same name
  */
 public class MyLocalCacheDestroyReproducer extends GridCommonAbstractTest {
     /** {@inheritDoc} */
@@ -48,7 +46,6 @@ public class MyLocalCacheDestroyReproducer extends GridCommonAbstractTest {
             .setPersistenceEnabled(true);
 
         CacheConfiguration<Integer, String> cacheCfg = new CacheConfiguration<Integer, String>(DEFAULT_CACHE_NAME)
-            .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
             .setCacheMode(CacheMode.LOCAL);
 
         return cfg
@@ -65,7 +62,7 @@ public class MyLocalCacheDestroyReproducer extends GridCommonAbstractTest {
 
         startGrids(SERVERS_CNT)
             .cluster()
-            .state(ClusterState.ACTIVE);
+            .active(true);
 
         // Filling caches
         for (int i = 0; i < SERVERS_CNT; i++) {
