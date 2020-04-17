@@ -60,7 +60,6 @@ public class MyTxRollBackAbsenceTest extends GridCommonAbstractTest {
 
     /** {@inheritDoc} */
     @Override protected void beforeTestsStarted() throws Exception {
-        super.beforeTestsStarted();
 
         cleanPersistenceDir();
 
@@ -68,6 +67,8 @@ public class MyTxRollBackAbsenceTest extends GridCommonAbstractTest {
 
         // Uncomment this when testing Ignite from GridGain repository
 //        withSystemProperty(IGNITE_WAL_LOG_TX_RECORDS, "true");
+
+        super.beforeTestsStarted();
     }
 
     /** {@inheritDoc} */
