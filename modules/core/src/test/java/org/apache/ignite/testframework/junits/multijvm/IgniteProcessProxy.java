@@ -198,7 +198,7 @@ public class IgniteProcessProxy implements IgniteEx {
         );
 
         if (locJvmGrid != null)
-            assert rmtNodeStartedLatch.await(30, TimeUnit.SECONDS): "Remote node has not joined [id=" + id + ']';
+            assert rmtNodeStartedLatch.await(30, TimeUnit.SECONDS) : "Remote node has not joined [id=" + id + ']';
 
         IgniteProcessProxy prevVal = gridProxies.putIfAbsent(cfg.getIgniteInstanceName(), this);
 
@@ -530,13 +530,11 @@ public class IgniteProcessProxy implements IgniteEx {
         throw new UnsupportedOperationException("Operation isn't supported yet.");
     }
 
-    @Override
-    public boolean isRebalanceEnabled() {
+    @Override public boolean isRebalanceEnabled() {
         return true;
     }
 
-    @Override
-    public void rebalanceEnabled(boolean rebalanceEnabled) {
+    @Override public void rebalanceEnabled(boolean rebalanceEnabled) {
         throw new UnsupportedOperationException("Operation isn't supported yet.");
     }
 
@@ -648,7 +646,7 @@ public class IgniteProcessProxy implements IgniteEx {
     }
 
     /** {@inheritDoc} */
-    @Override  public <K, V> IgniteCache<K, V> createNearCache(
+    @Override public <K, V> IgniteCache<K, V> createNearCache(
         @Nullable String cacheName,
         NearCacheConfiguration<K, V> nearCfg)
     {
@@ -713,7 +711,7 @@ public class IgniteProcessProxy implements IgniteEx {
     }
 
     /** {@inheritDoc} */
-    @Override  public IgniteAtomicSequence atomicSequence(String name, long initVal, boolean create)
+    @Override public IgniteAtomicSequence atomicSequence(String name, long initVal, boolean create)
         throws IgniteException {
         throw new UnsupportedOperationException("Operation isn't supported yet.");
     }
@@ -748,7 +746,7 @@ public class IgniteProcessProxy implements IgniteEx {
     }
 
     /** {@inheritDoc} */
-    @Override  public <T, S> IgniteAtomicStamped<T, S> atomicStamped(
+    @Override public <T, S> IgniteAtomicStamped<T, S> atomicStamped(
         String name,
         @Nullable T initVal,
         @Nullable S initStamp,

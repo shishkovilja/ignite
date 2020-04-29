@@ -97,6 +97,7 @@ import org.apache.ignite.internal.processors.cache.distributed.dht.topology.Grid
 import org.apache.ignite.internal.processors.cache.distributed.near.GridNearCacheAdapter;
 import org.apache.ignite.internal.processors.cache.local.GridLocalCache;
 import org.apache.ignite.internal.processors.cache.persistence.GridCacheDatabaseSharedManager;
+import org.apache.ignite.internal.processors.cache.persistence.IgniteCacheDatabaseSharedManager;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteInternalTx;
 import org.apache.ignite.internal.processors.cache.transactions.IgniteTxManager;
 import org.apache.ignite.internal.processors.cache.verify.IdleVerifyResultV2;
@@ -1206,7 +1207,7 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
 
         List<Integer> keys = new ArrayList<>(cnt);
 
-        while(c < cnt) {
+        while (c < cnt) {
             if (cctx.affinity().partition(k) == part) {
                 if (skip0 < skipCnt) {
                     k++;
@@ -1244,7 +1245,7 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
             }
 
             private void advance() {
-                while(cctx.affinity().partition(cur = next++) != part);
+                while (cctx.affinity().partition(cur = next++) != part);
             }
 
             @Override public boolean hasNext() {
@@ -1419,7 +1420,7 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
         BitSet before = m1.get(ign.cluster().localNode());
         BitSet after = m2.get(ign.cluster().localNode());
 
-        for (int p = before.nextSetBit(0); p >= 0; p = before.nextSetBit(p+1)) {
+        for (int p = before.nextSetBit(0); p >= 0; p = before.nextSetBit(p + 1)) {
             if (!after.get(p)) {
                 partsToRet.add(p);
 
@@ -2197,7 +2198,7 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
                 break;
 
             default:
-                try(IgniteDataStreamer<Integer, Integer> ds = grid(gridName).dataStreamer(cacheName)) {
+                try (IgniteDataStreamer<Integer, Integer> ds = grid(gridName).dataStreamer(cacheName)) {
                     ds.allowOverwrite(mode == 2);
 
                     ds.addData(map);
@@ -2480,5 +2481,38 @@ public abstract class GridCommonAbstractTest extends GridAbstractTest {
         }
 
         return true;
+    }
+
+    /**
+     * Enable checkpoints on a specific nodes.
+     *
+     * @param nodes Ignite nodes.
+     * @param enable {@code True} For checkpoint enabling.
+     * @throws IgniteCheckedException If failed.
+     */
+    protected void enableCheckpoints(Collection<Ignite> nodes, boolean enable) throws IgniteCheckedException {
+        for (Ignite node : nodes) {
+            assert !node.cluster().localNode().isClient();
+
+            IgniteCacheDatabaseSharedManager dbMgr = (((IgniteEx)node).context()
+                .cache().context().database());
+
+            assert dbMgr instanceof GridCacheDatabaseSharedManager;
+
+            GridCacheDatabaseSharedManager dbMgr0 = (GridCacheDatabaseSharedManager) dbMgr;
+
+            dbMgr0.enableCheckpoints(enable).get();
+        }
+    }
+
+    /**
+     * Enable checkpoints on a specific nodes.
+     *
+     * @param node Ignite node.
+     * @param enable {@code True} For checkpoint enabling.
+     * @throws IgniteCheckedException If failed.
+     */
+    protected void enableCheckpoints(Ignite node, boolean enable) throws IgniteCheckedException {
+        enableCheckpoints(Collections.singletonList(node), enable);
     }
 }
