@@ -17,6 +17,8 @@
 
 package org.apache.ignite.compatibility.testframework.util;
 
+import com.google.common.base.Charsets;
+import com.google.common.io.CharStreams;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
@@ -26,8 +28,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import com.google.common.base.Charsets;
-import com.google.common.io.CharStreams;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.X;
 import org.apache.ignite.internal.util.typedef.internal.SB;
@@ -231,6 +231,7 @@ public class MavenUtils {
         if (m2Home == null)
             return "mvn";
 
-        return m2Home + "/bin/mvn";
+        return U.isWindows() ? '"' + m2Home + "\\bin\\mvn\"" :
+            m2Home + "/bin/mvn";
     }
 }
