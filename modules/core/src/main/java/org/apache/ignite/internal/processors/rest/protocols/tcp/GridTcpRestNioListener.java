@@ -33,35 +33,40 @@ import org.apache.ignite.internal.client.marshaller.GridClientMarshaller;
 import org.apache.ignite.internal.processors.rest.GridRestCommand;
 import org.apache.ignite.internal.processors.rest.GridRestProtocolHandler;
 import org.apache.ignite.internal.processors.rest.GridRestResponse;
-import org.apache.ignite.internal.processors.rest.client.message.GridClientAbstractMessage;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientAuthenticationRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientCacheRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientClusterNameRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientClusterStateRequest;
+import org.apache.ignite.internal.processors.rest.client.message.GridClientClusterStateRequestV2;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientHandshakeRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientHandshakeResponse;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientMessage;
+import org.apache.ignite.internal.processors.rest.client.message.GridClientNodeStateBeforeStartRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientPingPacket;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientResponse;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientStateRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientTaskRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientTopologyRequest;
+import org.apache.ignite.internal.processors.rest.client.message.GridClientWarmUpRequest;
 import org.apache.ignite.internal.processors.rest.handlers.cache.GridCacheRestMetrics;
 import org.apache.ignite.internal.processors.rest.protocols.tcp.redis.GridRedisMessage;
 import org.apache.ignite.internal.processors.rest.protocols.tcp.redis.GridRedisNioListener;
+import org.apache.ignite.internal.processors.rest.request.GridRestAuthenticationRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestCacheRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestChangeStateRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestClusterNameRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestClusterStateRequest;
+import org.apache.ignite.internal.processors.rest.request.GridRestNodeStateBeforeStartRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestTaskRequest;
 import org.apache.ignite.internal.processors.rest.request.GridRestTopologyRequest;
+import org.apache.ignite.internal.processors.rest.request.GridRestWarmUpRequest;
 import org.apache.ignite.internal.util.nio.GridNioFuture;
 import org.apache.ignite.internal.util.nio.GridNioServerListenerAdapter;
 import org.apache.ignite.internal.util.nio.GridNioSession;
+import org.apache.ignite.internal.util.nio.GridNioSessionMetaKey;
 import org.apache.ignite.internal.util.typedef.CI1;
 import org.apache.ignite.internal.util.typedef.internal.U;
-import org.apache.ignite.plugin.security.SecurityCredentials;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.CACHE_APPEND;
@@ -82,8 +87,10 @@ import static org.apache.ignite.internal.processors.rest.GridRestCommand.CLUSTER
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.CLUSTER_STATE;
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.EXE;
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.NODE;
+import static org.apache.ignite.internal.processors.rest.GridRestCommand.NODE_STATE_BEFORE_START;
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.NOOP;
 import static org.apache.ignite.internal.processors.rest.GridRestCommand.TOPOLOGY;
+import static org.apache.ignite.internal.processors.rest.GridRestCommand.WARM_UP;
 import static org.apache.ignite.internal.processors.rest.client.message.GridClientCacheRequest.GridCacheOperation.APPEND;
 import static org.apache.ignite.internal.processors.rest.client.message.GridClientCacheRequest.GridCacheOperation.CAS;
 import static org.apache.ignite.internal.processors.rest.client.message.GridClientCacheRequest.GridCacheOperation.GET;
@@ -104,6 +111,12 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
     /** Mapping of {@code GridCacheOperation} to {@code GridRestCommand}. */
     private static final Map<GridClientCacheRequest.GridCacheOperation, GridRestCommand> cacheCmdMap =
         new EnumMap<>(GridClientCacheRequest.GridCacheOperation.class);
+
+    /** User attributes key. */
+    private static final int USER_ATTR_KEY = GridNioSessionMetaKey.nextUniqueKey();
+
+    /** Credentials key. */
+    private static final int CREDS_KEY = GridNioSessionMetaKey.nextUniqueKey();
 
     /** Supported protocol versions. */
     private static final Collection<Short> SUPP_VERS = new HashSet<>();
@@ -309,11 +322,12 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
         if (msg instanceof GridClientAuthenticationRequest) {
             GridClientAuthenticationRequest req = (GridClientAuthenticationRequest)msg;
 
-            restReq = new GridRestTaskRequest();
+            restReq = new GridRestAuthenticationRequest();
 
             restReq.command(NOOP);
 
-            restReq.credentials(req.credentials());
+            ses.addMeta(CREDS_KEY, req.credentials());
+            ses.addMeta(USER_ATTR_KEY, req.userAttributes());
         }
         else if (msg instanceof GridClientCacheRequest) {
             GridClientCacheRequest req = (GridClientCacheRequest)msg;
@@ -389,6 +403,9 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
         else if (msg instanceof GridClientClusterStateRequest) {
             GridClientClusterStateRequest req = (GridClientClusterStateRequest)msg;
 
+            boolean forceDeactivation = !(msg instanceof GridClientClusterStateRequestV2) ||
+                ((GridClientClusterStateRequestV2)msg).forceDeactivation();
+
             GridRestClusterStateRequest restChangeReq = new GridRestClusterStateRequest();
 
             if (req.isReqCurrentState()) {
@@ -398,26 +415,39 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
             else {
                 restChangeReq.state(req.state());
                 restChangeReq.command(CLUSTER_SET_STATE);
+
+                restChangeReq.forceDeactivation(forceDeactivation);
             }
 
             restReq = restChangeReq;
         }
         else if (msg instanceof GridClientClusterNameRequest)
             restReq = new GridRestClusterNameRequest();
+        else if (msg instanceof GridClientNodeStateBeforeStartRequest) {
+            GridClientNodeStateBeforeStartRequest reqClient = (GridClientNodeStateBeforeStartRequest)msg;
+
+            if (reqClient instanceof GridClientWarmUpRequest) {
+                GridClientWarmUpRequest warmUpReqClient = (GridClientWarmUpRequest)reqClient;
+
+                restReq = new GridRestWarmUpRequest().stopWarmUp(warmUpReqClient.stopWarmUp());
+
+                restReq.command(WARM_UP);
+            }
+            else {
+                restReq = new GridRestNodeStateBeforeStartRequest();
+
+                restReq.command(NODE_STATE_BEFORE_START);
+            }
+        }
 
         if (restReq != null) {
             restReq.destinationId(msg.destinationId());
             restReq.clientId(msg.clientId());
             restReq.sessionToken(msg.sessionToken());
             restReq.address(ses.remoteAddress());
-
-            if (restReq.credentials() == null) {
-                GridClientAbstractMessage msg0 = (GridClientAbstractMessage) msg;
-
-                restReq.credentials(new SecurityCredentials(msg0.login(), msg0.password()));
-            }
-
-            restReq.userAttributes(msg.userAttributes());
+            restReq.certificates(ses.certificates());
+            restReq.credentials(ses.meta(CREDS_KEY));
+            restReq.userAttributes(ses.meta(USER_ATTR_KEY));
         }
 
         return restReq;

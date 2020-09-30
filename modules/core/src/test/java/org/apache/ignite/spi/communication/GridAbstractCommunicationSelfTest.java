@@ -29,12 +29,16 @@ import java.util.UUID;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.cluster.ClusterNode;
 import org.apache.ignite.configuration.IgniteConfiguration;
+import org.apache.ignite.internal.managers.communication.GridIoMessageFactory;
 import org.apache.ignite.internal.managers.communication.IgniteMessageFactoryImpl;
 import org.apache.ignite.internal.processors.timeout.GridTimeoutProcessor;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.lang.IgniteRunnable;
+import org.apache.ignite.plugin.extensions.communication.IgniteMessageFactory;
 import org.apache.ignite.plugin.extensions.communication.Message;
+import org.apache.ignite.plugin.extensions.communication.MessageFactory;
+import org.apache.ignite.plugin.extensions.communication.MessageFactoryProvider;
 import org.apache.ignite.spi.IgniteSpiAdapter;
 import org.apache.ignite.testframework.GridSpiTestContext;
 import org.apache.ignite.testframework.GridTestNode;
@@ -75,13 +79,6 @@ public abstract class GridAbstractCommunicationSelfTest<T extends CommunicationS
 
     /** */
     protected boolean useSsl;
-
-    /**
-     *
-     */
-    static {
-        IgniteMessageFactoryImpl.registerCustom(GridTestMessage.DIRECT_TYPE, GridTestMessage::new);
-    }
 
     /** */
     private class MessageListener implements CommunicationListener<Message> {
@@ -306,6 +303,14 @@ public abstract class GridAbstractCommunicationSelfTest<T extends CommunicationS
 
             GridSpiTestContext ctx = initSpiContext();
 
+            MessageFactoryProvider testMsgFactory = new MessageFactoryProvider() {
+                @Override public void registerAll(IgniteMessageFactory factory) {
+                    factory.register(GridTestMessage.DIRECT_TYPE, GridTestMessage::new);
+                }
+            };
+
+            ctx.messageFactory(new IgniteMessageFactoryImpl(new MessageFactory[] {new GridIoMessageFactory(), testMsgFactory}));
+
             ctx.setLocalNode(node);
 
             ctx.timeoutProcessor(timeoutProcessor);
@@ -329,7 +334,6 @@ public abstract class GridAbstractCommunicationSelfTest<T extends CommunicationS
 
             spi.setListener(new MessageListener(rsrcs.getNodeId()));
 
-            node.setAttributes(spi.getNodeAttributes());
             node.setAttribute(ATTR_MACS, F.concat(U.allLocalMACs(), ", "));
 
             node.order(i + 1);
@@ -337,6 +341,8 @@ public abstract class GridAbstractCommunicationSelfTest<T extends CommunicationS
             nodes.add(node);
 
             spi.spiStart(getTestIgniteInstanceName() + (i + 1));
+
+            node.setAttributes(spi.getNodeAttributes());
 
             spis.put(rsrcs.getNodeId(), spi);
 

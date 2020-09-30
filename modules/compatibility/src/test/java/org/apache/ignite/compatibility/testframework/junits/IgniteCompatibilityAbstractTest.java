@@ -141,7 +141,7 @@ public abstract class IgniteCompatibilityAbstractTest extends GridCommonAbstract
 
         final IgniteConfiguration cfg = getConfiguration(igniteInstanceName); // stub - won't be used at node startup
 
-        IgniteProcessProxy ignite = new IgniteProcessProxy(cfg, log, locJvmInstance == null ? null: (x) -> locJvmInstance, true) {
+        IgniteProcessProxy ignite = new IgniteProcessProxy(cfg, log, locJvmInstance == null ? null : (x) -> locJvmInstance, true) {
             @Override protected IgniteLogger logger(IgniteLogger log, Object ctgr) {
                 return ListenedGridTestLog4jLogger.createLogger(ctgr + "#" + ver.replaceAll("\\.", "_"));
             }
@@ -159,46 +159,7 @@ public abstract class IgniteCompatibilityAbstractTest extends GridCommonAbstract
             }
 
             @Override protected Collection<String> filteredJvmArgs() throws Exception {
-                Collection<String> filteredJvmArgs = new ArrayList<>();
-
-                filteredJvmArgs.add("-ea");
-
-                for (String arg : U.jvmArgs()) {
-                    if (arg.startsWith("-Xmx") || arg.startsWith("-Xms"))
-                        filteredJvmArgs.add(arg);
-                }
-
-                final Collection<Dependency> dependencies = getDependencies(ver);
-
-                Set<String> excluded = getExcluded(ver, dependencies);
-
-                StringBuilder pathBuilder = new StringBuilder();
-
-                for (URL url : CompatibilityTestsUtils.classLoaderUrls(CLASS_LOADER)) {
-                    String path = url.getPath();
-
-                    if (excluded.stream().noneMatch(path::contains))
-                        pathBuilder.append(path).append(File.pathSeparator);
-                }
-
-                for (Dependency dependency : dependencies) {
-                    final String artifactVer = Optional.ofNullable(dependency.version()).orElse(ver);
-
-                    String pathToArtifact = MavenUtils.getPathToIgniteArtifact(dependency.groupId(),
-                        dependency.artifactId(), artifactVer, dependency.classifier());
-
-                    pathBuilder.append(pathToArtifact).append(File.pathSeparator);
-                }
-
-                filteredJvmArgs.add("-cp");
-                filteredJvmArgs.add(pathBuilder.toString());
-
-                final Collection<String> jvmParms = getJvmParams();
-
-                if (jvmParms != null)
-                    filteredJvmArgs.addAll(jvmParms);
-
-                return filteredJvmArgs;
+                return getProcessProxyJvmArgs(ver);
             }
         };
 
@@ -224,6 +185,52 @@ public abstract class IgniteCompatibilityAbstractTest extends GridCommonAbstract
             rmJvmInstance = ignite;
 
         return ignite;
+    }
+
+    /**
+     * Creates list of JVM arguments to be used to start new Ignite process in separate JVM.
+     */
+    protected Collection<String> getProcessProxyJvmArgs(String ver) throws Exception {
+        Collection<String> filteredJvmArgs = new ArrayList<>();
+
+        filteredJvmArgs.add("-ea");
+
+        for (String arg : U.jvmArgs()) {
+            if (arg.startsWith("-Xmx") || arg.startsWith("-Xms"))
+                filteredJvmArgs.add(arg);
+        }
+
+        final Collection<Dependency> dependencies = getDependencies(ver);
+
+        Set<String> excluded = getExcluded(ver, dependencies);
+
+        StringBuilder pathBuilder = new StringBuilder();
+
+        for (URL url : CompatibilityTestsUtils.classLoaderUrls(CLASS_LOADER)) {
+            String path = url.getPath();
+
+            if (excluded.stream().noneMatch(path::contains))
+                pathBuilder.append(path).append(File.pathSeparator);
+        }
+
+        for (Dependency dependency : dependencies) {
+            final String artifactVer = Optional.ofNullable(dependency.version()).orElse(ver);
+
+            String pathToArtifact = MavenUtils.getPathToIgniteArtifact(dependency.groupId(),
+                    dependency.artifactId(), artifactVer, dependency.classifier());
+
+            pathBuilder.append(pathToArtifact).append(File.pathSeparator);
+        }
+
+        filteredJvmArgs.add("-cp");
+        filteredJvmArgs.add(pathBuilder.toString());
+
+        final Collection<String> jvmParms = getJvmParams();
+
+        if (jvmParms != null)
+            filteredJvmArgs.addAll(jvmParms);
+
+        return filteredJvmArgs;
     }
 
     /**

@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.net.ssl.SSLContext;
-
 import org.apache.ignite.cluster.ClusterState;
 import org.apache.ignite.internal.client.GridClientCacheFlag;
 import org.apache.ignite.internal.client.GridClientClosedException;
@@ -310,17 +309,6 @@ public abstract class GridClientConnection {
         boolean keepBinaries) throws GridClientConnectionResetException, GridClientClosedException;
 
     /**
-     * Change grid global state.
-     *
-     * @param active Active.
-     * @param destNodeId Destination node id.
-     * @deprecated Use {@link #changeState(ClusterState, UUID)} instead.
-     */
-    @Deprecated
-    public abstract GridClientFuture<?> changeState(boolean active, UUID destNodeId)
-            throws GridClientClosedException, GridClientConnectionResetException;
-
-    /**
      * Changes grid global state.
      *
      * @param state New cluster state.
@@ -332,15 +320,16 @@ public abstract class GridClientConnection {
         throws GridClientClosedException, GridClientConnectionResetException;
 
     /**
-     * Get current grid state.
+     * Changes grid global state.
      *
+     * @param state New cluster state.
      * @param destNodeId Destination node id.
-     * @deprecated Use {@link #state(UUID)} instead.
+     * @param forceDeactivation If {@code true}, cluster deactivation will be forced.
+     * @throws GridClientConnectionResetException In case of error.
+     * @throws GridClientClosedException If client was manually closed before request was sent over network.
      */
-    @Deprecated
-    public abstract GridClientFuture<Boolean> currentState(UUID destNodeId)
+    public abstract GridClientFuture<?> changeState(ClusterState state, UUID destNodeId, boolean forceDeactivation)
         throws GridClientClosedException, GridClientConnectionResetException;
-
 
     /**
      * Gets current grid global state.
@@ -414,6 +403,15 @@ public abstract class GridClientConnection {
      * @throws GridClientException If message forwarding failed.
      */
     public abstract GridClientFutureAdapter<?> forwardMessage(Object body) throws GridClientException;
+
+    /**
+     * Sending messages before node starts and getting a response to it.
+     *
+     * @param msg A raw message to send.
+     * @return Future holding server's response.
+     * @throws GridClientException In case of error.
+     */
+    public abstract GridClientFutureAdapter<?> messageBeforeStart(Object msg) throws GridClientException;
 
     /**
      * @return {@code True} if connection is closed.

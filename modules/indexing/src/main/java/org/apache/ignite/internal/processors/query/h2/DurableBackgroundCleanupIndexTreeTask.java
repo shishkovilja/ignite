@@ -17,6 +17,7 @@
 package org.apache.ignite.internal.processors.query.h2;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,10 +29,8 @@ import org.apache.ignite.internal.processors.cache.GridCacheContext;
 import org.apache.ignite.internal.processors.cache.persistence.metastorage.pendingtask.DurableBackgroundTask;
 import org.apache.ignite.internal.processors.cache.persistence.tree.BPlusTree;
 import org.apache.ignite.internal.processors.query.h2.database.H2Tree;
-import org.apache.ignite.internal.processors.query.h2.database.H2TreeIndex;
 import org.apache.ignite.internal.util.typedef.internal.CU;
 import org.apache.ignite.internal.util.typedef.internal.S;
-import org.h2.table.IndexColumn;
 
 import static org.apache.ignite.internal.metric.IoStatisticsType.SORTED_INDEX;
 
@@ -47,6 +46,9 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
 
     /** */
     private transient List<H2Tree> trees;
+
+    /** */
+    private transient volatile boolean completed;
 
     /** */
     private String cacheGrpName;
@@ -74,6 +76,7 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
     ) {
         this.rootPages = rootPages;
         this.trees = trees;
+        this.completed = false;
         this.cacheGrpName = cacheGrpName;
         this.cacheName = cacheName;
         this.schemaName = schemaName;
@@ -112,12 +115,6 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
                 try {
                     String treeName = "deletedTree_" + i + "_" + shortName();
 
-                    H2TreeIndex.IndexColumnsInfo unwrappedColsInfo =
-                        new H2TreeIndex.IndexColumnsInfo(new IndexColumn[0], new ArrayList<>(), 0, 0);
-
-                    H2TreeIndex.IndexColumnsInfo wrappedColsInfo =
-                        new H2TreeIndex.IndexColumnsInfo(new IndexColumn[0], new ArrayList<>(), 0, 0);
-
                     H2Tree tree = new H2Tree(
                         cctx,
                         null,
@@ -133,8 +130,8 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
                         cctx.offheap().globalRemoveId(),
                         rootPage,
                         false,
-                        unwrappedColsInfo,
-                        wrappedColsInfo,
+                        Collections.emptyList(),
+                        Collections.emptyList(),
                         new AtomicInteger(0),
                         false,
                         false,
@@ -142,7 +139,9 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
                         null,
                         ctx.failure(),
                         null,
-                        stats
+                        stats,
+                        null,
+                        0
                     );
 
                     trees0.add(tree);
@@ -170,6 +169,21 @@ public class DurableBackgroundCleanupIndexTreeTask implements DurableBackgroundT
         finally {
             ctx.cache().context().database().checkpointReadUnlock();
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override public void complete() {
+        completed = true;
+    }
+
+    /** {@inheritDoc} */
+    @Override public boolean isCompleted() {
+        return completed;
+    }
+
+    /** {@inheritDoc} */
+    @Override public void onCancel() {
+        trees = null;
     }
 
     /** {@inheritDoc} */

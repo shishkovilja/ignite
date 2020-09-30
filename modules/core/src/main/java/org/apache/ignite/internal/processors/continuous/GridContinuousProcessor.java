@@ -518,7 +518,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
         }
 
         if (discoProtoVer == 2) {
-            if (data.hasJoiningNodeData())    {
+            if (data.hasJoiningNodeData()) {
                 ContinuousRoutinesJoiningNodeDiscoveryData nodeData = (ContinuousRoutinesJoiningNodeDiscoveryData)
                     data.joiningNodeData();
 
@@ -1013,7 +1013,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
             assert discoProtoVer == 2 : discoProtoVer;
 
             byte[] nodeFilterBytes = nodeFilter != null ? U.marshal(marsh, nodeFilter) : null;
-            byte[] hndBytes =  U.marshal(marsh, hnd);
+            byte[] hndBytes = U.marshal(marsh, hnd);
 
             StartRequestDataV2 reqData = new StartRequestDataV2(nodeFilterBytes,
                 hndBytes,
@@ -1472,7 +1472,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
         }
 
         // Load partition counters.
-        if (hnd.isQuery()) {
+        if (err == null && hnd.isQuery()) {
             GridCacheProcessor proc = ctx.cache();
 
             if (proc != null) {
@@ -1674,7 +1674,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
             err != null);
 
         try {
-            ctx.io().sendToGridTopic(node, TOPIC_CONTINUOUS, msg, SYSTEM_POOL, null);
+            ctx.io().sendToGridTopic(node, TOPIC_CONTINUOUS, msg, SYSTEM_POOL);
         }
         catch (ClusterTopologyCheckedException e) {
             if (log.isDebugEnabled())
@@ -2022,8 +2022,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
                     if (info.autoUnsubscribe)
                         unregisterRemote(routineId);
 
-                    if (info.hnd.isQuery())
-                        info.hnd.onNodeLeft();
+                    info.hnd.flushOnNodeLeft();
                 }
             }
 
@@ -2172,7 +2171,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
      */
     public static class RemoteRoutineInfo implements RoutineInfo {
         /** Master node ID. */
-        private UUID nodeId;
+        private final UUID nodeId;
 
         /** Continuous routine handler. */
         private final GridContinuousHandler hnd;
@@ -2193,7 +2192,7 @@ public class GridContinuousProcessor extends GridProcessorAdapter {
         private long lastSndTime = U.currentTimeMillis();
 
         /** Automatic unsubscribe flag. */
-        private boolean autoUnsubscribe;
+        private final boolean autoUnsubscribe;
 
         /** Delayed register flag. */
         private boolean delayedRegister;

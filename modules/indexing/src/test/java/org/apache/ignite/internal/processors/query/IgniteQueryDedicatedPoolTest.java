@@ -17,7 +17,6 @@
 
 package org.apache.ignite.internal.processors.query;
 
-import javax.cache.Cache;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CyclicBarrier;
+import javax.cache.Cache;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.cache.query.QueryCursor;
@@ -45,13 +45,10 @@ import org.apache.ignite.spi.indexing.IndexingQueryFilter;
 import org.apache.ignite.spi.indexing.IndexingSpi;
 import org.apache.ignite.testframework.ListeningTestLogger;
 import org.apache.ignite.testframework.LogListener;
-import org.apache.ignite.testframework.junits.SystemPropertiesRule;
 import org.apache.ignite.testframework.junits.WithSystemProperty;
 import org.apache.ignite.testframework.junits.common.GridCommonAbstractTest;
 import org.jetbrains.annotations.Nullable;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 
 import static java.util.Objects.nonNull;
 import static org.apache.ignite.IgniteSystemProperties.IGNITE_STARVATION_CHECK_INTERVAL;
@@ -62,9 +59,6 @@ import static org.apache.ignite.testframework.GridTestUtils.waitForCondition;
  * Ensures that SQL queries are executed in a dedicated thread pool.
  */
 public class IgniteQueryDedicatedPoolTest extends GridCommonAbstractTest {
-    /** Class rule. */
-    @ClassRule public static final TestRule classRule = new SystemPropertiesRule();
-
     /** Name of the cache for test */
     private static final String CACHE_NAME = "query_pool_test";
 
@@ -232,7 +226,7 @@ public class IgniteQueryDedicatedPoolTest extends GridCommonAbstractTest {
      * @param contains Expect whether or not messages are in log.
      * @throws Exception If failed.
      */
-    private void checkStarvationQryPoolInLog(long checkTimeout, String findLogMsg ,boolean contains) throws Exception {
+    private void checkStarvationQryPoolInLog(long checkTimeout, String findLogMsg, boolean contains) throws Exception {
         assertNotNull(findLogMsg);
 
         qryPoolSize = 1;

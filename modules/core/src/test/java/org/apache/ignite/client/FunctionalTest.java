@@ -17,11 +17,9 @@
 
 package org.apache.ignite.client;
 
-import java.lang.management.ManagementFactory;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -34,7 +32,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -43,8 +44,6 @@ import javax.cache.expiry.AccessedExpiryPolicy;
 import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 import javax.cache.expiry.ModifiedExpiryPolicy;
-import javax.management.MBeanServerInvocationHandler;
-import javax.management.ObjectName;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.Ignition;
@@ -59,23 +58,32 @@ import org.apache.ignite.cache.PartitionLossPolicy;
 import org.apache.ignite.cache.QueryEntity;
 import org.apache.ignite.cache.QueryIndex;
 import org.apache.ignite.configuration.ClientConfiguration;
+import org.apache.ignite.internal.IgniteEx;
+import org.apache.ignite.internal.IgniteInternalFuture;
 import org.apache.ignite.internal.client.thin.ClientServerError;
 import org.apache.ignite.internal.processors.odbc.ClientListenerProcessor;
 import org.apache.ignite.internal.processors.platform.cache.expiry.PlatformExpiryPolicy;
 import org.apache.ignite.internal.processors.platform.client.ClientStatus;
-import org.apache.ignite.internal.util.GridLeanMap;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.T2;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.mxbean.ClientProcessorMXBean;
+import org.apache.ignite.spi.systemview.view.SystemView;
+import org.apache.ignite.spi.systemview.view.TransactionView;
 import org.apache.ignite.testframework.GridTestUtils;
+import org.apache.ignite.transactions.TransactionIsolation;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import static org.apache.ignite.internal.processors.cache.transactions.IgniteTxManager.TXS_MON_LIST;
+import static org.apache.ignite.testframework.GridTestUtils.assertThrowsAnyCause;
+import static org.apache.ignite.testframework.junits.GridAbstractTest.getMxBean;
 import static org.apache.ignite.transactions.TransactionConcurrency.OPTIMISTIC;
 import static org.apache.ignite.transactions.TransactionConcurrency.PESSIMISTIC;
 import static org.apache.ignite.transactions.TransactionIsolation.READ_COMMITTED;
+import static org.apache.ignite.transactions.TransactionIsolation.REPEATABLE_READ;
+import static org.apache.ignite.transactions.TransactionIsolation.SERIALIZABLE;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -87,8 +95,10 @@ import static org.junit.Assert.fail;
 /**
  * Thin client functional tests.
  */
+@SuppressWarnings("unused")
 public class FunctionalTest {
     /** Per test timeout */
+    @SuppressWarnings("deprecation")
     @Rule
     public Timeout globalTimeout = new Timeout((int) GridTestUtils.DFLT_TEST_TIMEOUT);
 
@@ -180,7 +190,7 @@ public class FunctionalTest {
                 .setEagerTtl(false)
                 .setGroupName("FunctionalTest")
                 .setDefaultLockTimeout(12345)
-                .setPartitionLossPolicy(PartitionLossPolicy.READ_WRITE_ALL)
+                .setPartitionLossPolicy(PartitionLossPolicy.READ_WRITE_SAFE)
                 .setReadFromBackup(true)
                 .setRebalanceBatchSize(67890)
                 .setRebalanceBatchesPrefetchCount(102938)
@@ -211,7 +221,7 @@ public class FunctionalTest {
                 )
                 .setExpiryPolicy(new PlatformExpiryPolicy(10, 20, 30));
 
-            ClientCache cache = client.createCache(cacheCfg);
+            ClientCache<Object, Object> cache = client.createCache(cacheCfg);
 
             assertEquals(CACHE_NAME, cache.getName());
 
@@ -292,72 +302,71 @@ public class FunctionalTest {
         try (Ignite ignite = Ignition.start(Config.getServerConfiguration());
              IgniteClient client = Ignition.startClient(getClientConfiguration())
         ) {
-            IgniteCache<Object, Object> thickCache = ignite.getOrCreateCache(Config.DEFAULT_CACHE_NAME);
-            ClientCache<Object, Object> thinCache = client.getOrCreateCache(Config.DEFAULT_CACHE_NAME);
+            ignite.getOrCreateCache(Config.DEFAULT_CACHE_NAME);
 
             Person person = new Person(1, "name");
 
             // Primitive and built-in types.
-            checkDataType(thinCache, thickCache, (byte)1);
-            checkDataType(thinCache, thickCache, (short)1);
-            checkDataType(thinCache, thickCache, 1);
-            checkDataType(thinCache, thickCache, 1L);
-            checkDataType(thinCache, thickCache, 1.0f);
-            checkDataType(thinCache, thickCache, 1.0d);
-            checkDataType(thinCache, thickCache, 'c');
-            checkDataType(thinCache, thickCache, true);
-            checkDataType(thinCache, thickCache, "string");
-            checkDataType(thinCache, thickCache, UUID.randomUUID());
-            checkDataType(thinCache, thickCache, new Date());
+            checkDataType(client, ignite, (byte)1);
+            checkDataType(client, ignite, (short)1);
+            checkDataType(client, ignite, 1);
+            checkDataType(client, ignite, 1L);
+            checkDataType(client, ignite, 1.0f);
+            checkDataType(client, ignite, 1.0d);
+            checkDataType(client, ignite, 'c');
+            checkDataType(client, ignite, true);
+            checkDataType(client, ignite, "string");
+            checkDataType(client, ignite, UUID.randomUUID());
+            checkDataType(client, ignite, new Date());
 
             // Enum.
-            checkDataType(thinCache, thickCache, CacheAtomicityMode.ATOMIC);
+            checkDataType(client, ignite, CacheAtomicityMode.ATOMIC);
 
             // Binary object.
-            checkDataType(thinCache, thickCache, person);
+            checkDataType(client, ignite, person);
 
             // Arrays.
-            checkDataType(thinCache, thickCache, new byte[] {(byte)1});
-            checkDataType(thinCache, thickCache, new short[] {(short)1});
-            checkDataType(thinCache, thickCache, new int[] {1});
-            checkDataType(thinCache, thickCache, new long[] {1L});
-            checkDataType(thinCache, thickCache, new float[] {1.0f});
-            checkDataType(thinCache, thickCache, new double[] {1.0d});
-            checkDataType(thinCache, thickCache, new char[] {'c'});
-            checkDataType(thinCache, thickCache, new boolean[] {true});
-            checkDataType(thinCache, thickCache, new String[] {"string"});
-            checkDataType(thinCache, thickCache, new UUID[] {UUID.randomUUID()});
-            checkDataType(thinCache, thickCache, new Date[] {new Date()});
-            checkDataType(thinCache, thickCache, new int[][] {new int[] {1}});
+            checkDataType(client, ignite, new byte[] {(byte)1});
+            checkDataType(client, ignite, new short[] {(short)1});
+            checkDataType(client, ignite, new int[] {1});
+            checkDataType(client, ignite, new long[] {1L});
+            checkDataType(client, ignite, new float[] {1.0f});
+            checkDataType(client, ignite, new double[] {1.0d});
+            checkDataType(client, ignite, new char[] {'c'});
+            checkDataType(client, ignite, new boolean[] {true});
+            checkDataType(client, ignite, new String[] {"string"});
+            checkDataType(client, ignite, new UUID[] {UUID.randomUUID()});
+            checkDataType(client, ignite, new Date[] {new Date()});
+            checkDataType(client, ignite, new int[][] {new int[] {1}});
 
-            checkDataType(thinCache, thickCache, new CacheAtomicityMode[] {CacheAtomicityMode.ATOMIC});
+            checkDataType(client, ignite, new CacheAtomicityMode[] {CacheAtomicityMode.ATOMIC});
 
-            checkDataType(thinCache, thickCache, new Person[] {person});
-            checkDataType(thinCache, thickCache, new Person[][] {new Person[] {person}});
-            checkDataType(thinCache, thickCache, new Object[] {1, "string", person, new Person[] {person}});
+            checkDataType(client, ignite, new Person[] {person});
+            checkDataType(client, ignite, new Person[][] {new Person[] {person}});
+            checkDataType(client, ignite, new Object[] {1, "string", person, new Person[] {person}});
 
             // Lists.
-            checkDataType(thinCache, thickCache, Collections.emptyList());
-            checkDataType(thinCache, thickCache, Collections.singletonList(person));
-            checkDataType(thinCache, thickCache, Arrays.asList(person, person));
-            checkDataType(thinCache, thickCache, new ArrayList<>(Arrays.asList(person, person)));
-            checkDataType(thinCache, thickCache, new LinkedList<>(Arrays.asList(person, person)));
-            checkDataType(thinCache, thickCache, Arrays.asList(Arrays.asList(person, person), person));
+            checkDataType(client, ignite, Collections.emptyList());
+            checkDataType(client, ignite, Collections.singletonList(person));
+            checkDataType(client, ignite, Arrays.asList(person, person));
+            checkDataType(client, ignite, new ArrayList<>(Arrays.asList(person, person)));
+            checkDataType(client, ignite, new LinkedList<>(Arrays.asList(person, person)));
+            checkDataType(client, ignite, Arrays.asList(Arrays.asList(person, person), person));
 
             // Sets.
-            checkDataType(thinCache, thickCache, Collections.emptySet());
-            checkDataType(thinCache, thickCache, Collections.singleton(person));
-            checkDataType(thinCache, thickCache, new HashSet<>(Arrays.asList(1, 2)));
-            checkDataType(thinCache, thickCache, new HashSet<>(Arrays.asList(Arrays.asList(person, person), person)));
-            checkDataType(thinCache, thickCache, new HashSet<>(new ArrayList<>(Arrays.asList(Arrays.asList(person,
+            checkDataType(client, ignite, Collections.emptySet());
+            checkDataType(client, ignite, Collections.singleton(person));
+            checkDataType(client, ignite, new HashSet<>(Arrays.asList(1, 2)));
+            checkDataType(client, ignite, new HashSet<>(Arrays.asList(Arrays.asList(person, person), person)));
+            checkDataType(client, ignite, new HashSet<>(new ArrayList<>(Arrays.asList(Arrays.asList(person,
                 person), person))));
 
             // Maps.
-            checkDataType(thinCache, thickCache, Collections.emptyMap());
-            checkDataType(thinCache, thickCache, Collections.singletonMap(1, person));
-            checkDataType(thinCache, thickCache, F.asMap(1, person));
-            checkDataType(thinCache, thickCache, new HashMap<>(F.asMap(1, person)));
-            checkDataType(thinCache, thickCache, new HashMap<>(F.asMap(new HashSet<>(Arrays.asList(1, 2)),
+            checkDataType(client, ignite, Collections.emptyMap());
+            checkDataType(client, ignite, Collections.singletonMap(1, person));
+            checkDataType(client, ignite, F.asMap(1, person));
+            checkDataType(client, ignite, new HashMap<>(F.asMap(1, person)));
+            checkDataType(client, ignite, new HashMap<>(F.asMap(new HashSet<>(Arrays.asList(1, 2)),
                 Arrays.asList(person, person))));
         }
     }
@@ -365,12 +374,14 @@ public class FunctionalTest {
     /**
      * Check that we get the same value from the cache as we put before.
      *
-     * @param thinCache Thin client cache.
-     * @param thickCache Thick client cache.
+     * @param client Thin client.
+     * @param ignite Ignite node.
      * @param obj Value of data type to check.
      */
-    private void checkDataType(ClientCache<Object, Object> thinCache, IgniteCache<Object, Object> thickCache,
-        Object obj) {
+    private void checkDataType(IgniteClient client, Ignite ignite, Object obj) {
+        IgniteCache<Object, Object> thickCache = ignite.cache(Config.DEFAULT_CACHE_NAME);
+        ClientCache<Object, Object> thinCache = client.cache(Config.DEFAULT_CACHE_NAME);
+
         Integer key = 1;
 
         thinCache.put(key, obj);
@@ -381,12 +392,9 @@ public class FunctionalTest {
 
         assertEqualsArraysAware(obj, cachedObj);
 
-        // TODO IGNITE-12624 Put object to thick cache to register binary type (workaround for system types registration)
-        thickCache.put(2, obj);
+        assertEqualsArraysAware(obj, thickCache.get(key));
 
-        // TODO IGNITE-12624 Skip check for system types marshalled by optimized marshaller.
-        if (!hasSystemOptimizedMarshallerType(obj))
-            assertEqualsArraysAware(obj, thickCache.get(key));
+        assertEquals(client.binary().typeId(obj.getClass().getName()), ignite.binary().typeId(obj.getClass().getName()));
 
         if (!obj.getClass().isArray()) { // TODO IGNITE-12578
             // Server-side comparison with the original object.
@@ -395,30 +403,6 @@ public class FunctionalTest {
             // Server-side comparison with the restored object.
             assertTrue(thinCache.remove(key, cachedObj));
         }
-    }
-
-    /**
-     * Check recursively if the object has system types which marshalled by optimized marshaller.
-     *
-     * Note: This is temporary method needed to workaround IGNITE-12624.
-     */
-    private boolean hasSystemOptimizedMarshallerType(Object obj) {
-        if (obj.getClass().getName().startsWith("java.util.Collections") ||
-            obj.getClass().getName().startsWith("java.util.Arrays") ||
-            obj instanceof GridLeanMap)
-            return true;
-        else if (obj instanceof Collection) {
-            for (Object obj0 : (Iterable<?>)obj) {
-                if (hasSystemOptimizedMarshallerType(obj0))
-                    return true;
-            }
-        }
-        else if (obj instanceof Map) {
-            return hasSystemOptimizedMarshallerType(((Map)obj).values()) ||
-                hasSystemOptimizedMarshallerType(((Map)obj).keySet());
-        }
-
-        return false;
     }
 
     /**
@@ -576,6 +560,7 @@ public class FunctionalTest {
     public void testClientFailsOnStart() {
         ClientConnectionException expEx = null;
 
+        //noinspection EmptyTryBlock
         try (IgniteClient ignored = Ignition.startClient(getClientConfiguration())) {
             // No-op.
         }
@@ -595,6 +580,149 @@ public class FunctionalTest {
             String.format("%s expected but no exception was received", ClientConnectionException.class.getName()),
             expEx
         );
+    }
+
+
+    /**
+     * Test PESSIMISTIC REPEATABLE_READ tx holds lock and other tx should be timed out.
+     */
+    @Test
+    public void testPessimisticRepeatableReadsTransactionHoldsLock() throws Exception {
+        testPessimisticTxLocking(REPEATABLE_READ);
+    }
+
+    /**
+     * Test PESSIMISTIC SERIALIZABLE tx holds lock and other tx should be timed out.
+     */
+    @Test
+    public void testPessimisticSerializableTransactionHoldsLock() throws Exception {
+        testPessimisticTxLocking(SERIALIZABLE);
+    }
+
+    /**
+     * Test pessimistic tx holds the lock.
+     */
+    private void testPessimisticTxLocking(TransactionIsolation isolation) throws Exception {
+        try (Ignite ignite = Ignition.start(Config.getServerConfiguration());
+             IgniteClient client = Ignition.startClient(getClientConfiguration())
+        ) {
+            ClientCache<Integer, String> cache = client.createCache(new ClientCacheConfiguration()
+                    .setName("cache")
+                    .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
+            );
+            cache.put(0, "value0");
+
+            Future<?> fut;
+
+            try (ClientTransaction tx = client.transactions().txStart(PESSIMISTIC, isolation)) {
+                assertEquals("value0", cache.get(0));
+
+                CyclicBarrier barrier = new CyclicBarrier(2);
+
+                fut = ForkJoinPool.commonPool().submit(() -> {
+                    try (ClientTransaction tx2 = client.transactions().txStart(OPTIMISTIC, REPEATABLE_READ, 500)) {
+                        cache.put(0, "value2");
+                        tx2.commit();
+                    } finally {
+                        try {
+                            barrier.await(2000, TimeUnit.MILLISECONDS);
+                        } catch (Throwable ignore) {
+                            // No-op.
+                        }
+                    }
+                });
+
+                barrier.await(2000, TimeUnit.MILLISECONDS);
+
+                tx.commit();
+            }
+
+            assertEquals("value0", cache.get(0));
+
+            assertThrowsAnyCause(null, fut::get, ClientException.class,
+                    "Failed to acquire lock within provided timeout");
+        }
+    }
+
+    /**
+     * Test OPTIMISTIC SERIALIZABLE tx rolls backs if another TX commits.
+     */
+    @Test
+    public void testOptimitsticSerializableTransactionHoldsLock() throws Exception {
+        try (Ignite ignite = Ignition.start(Config.getServerConfiguration());
+             IgniteClient client = Ignition.startClient(getClientConfiguration())
+        ) {
+            ClientCache<Integer, String> cache = client.createCache(new ClientCacheConfiguration()
+                    .setName("cache")
+                    .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
+            );
+            cache.put(0, "value0");
+
+            final CountDownLatch latch = new CountDownLatch(1);
+
+            try (ClientTransaction tx = client.transactions().txStart(OPTIMISTIC, SERIALIZABLE)) {
+                assertEquals("value0", cache.get(0));
+
+                Future<?> fut = ForkJoinPool.commonPool().submit(() -> {
+                    try (ClientTransaction tx2 = client.transactions().txStart(OPTIMISTIC, REPEATABLE_READ)) {
+                        cache.put(0, "value2");
+                        tx2.commit();
+                    }
+                    finally {
+                        latch.countDown();
+                    }
+                });
+
+                latch.await();
+
+                cache.put(0, "value1");
+
+                fut.get();
+
+                assertThrowsAnyCause(null, () -> {
+                    tx.commit();
+                    return null;
+                }, ClientException.class, "read/write conflict");
+            }
+
+            assertEquals("value2", cache.get(0));
+        }
+    }
+
+    /**
+     * Test OPTIMISTIC REPEATABLE_READ tx doesn't conflict with a regular cache put.
+     */
+    @Test
+    public void testOptimitsticRepeatableReadUpdatesValue() throws Exception {
+        try (Ignite ignored = Ignition.start(Config.getServerConfiguration());
+             IgniteClient client = Ignition.startClient(getClientConfiguration())
+        ) {
+            ClientCache<Integer, String> cache = client.createCache(new ClientCacheConfiguration()
+                    .setName("cache")
+                    .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
+            );
+            cache.put(0, "value0");
+
+            try (ClientTransaction tx = client.transactions().txStart(OPTIMISTIC, REPEATABLE_READ)) {
+                assertEquals("value0", cache.get(0));
+
+                cache.put(0, "value1");
+
+                Future<?> f = ForkJoinPool.commonPool().submit(() -> {
+                    assertEquals("value0", cache.get(0));
+
+                    cache.put(0, "value2");
+
+                    assertEquals("value2", cache.get(0));
+                });
+
+                f.get();
+
+                tx.commit();
+            }
+
+            assertEquals("value1", cache.get(0));
+        }
     }
 
     /**
@@ -692,7 +820,7 @@ public class FunctionalTest {
 
                     fail();
                 }
-                catch (ClientServerError expected) {
+                catch (ClientException expected) {
                     // No-op.
                 }
 
@@ -701,7 +829,7 @@ public class FunctionalTest {
 
                     fail();
                 }
-                catch (ClientServerError expected) {
+                catch (ClientException expected) {
                     // No-op.
                 }
             }
@@ -711,10 +839,8 @@ public class FunctionalTest {
             cache.put(1, "value5");
 
             // Test failover.
-            ObjectName mbeanName = U.makeMBeanName(ignite.name(), "Clients", ClientListenerProcessor.class.getSimpleName());
-
-            ClientProcessorMXBean mxBean = MBeanServerInvocationHandler.newProxyInstance(
-                ManagementFactory.getPlatformMBeanServer(), mbeanName, ClientProcessorMXBean.class, true);
+            ClientProcessorMXBean mxBean = getMxBean(ignite.name(), "Clients",
+                ClientListenerProcessor.class, ClientProcessorMXBean.class);
 
             try (ClientTransaction tx = client.transactions().txStart()) {
                 cache.put(1, "value6");
@@ -836,7 +962,7 @@ public class FunctionalTest {
 
                 cache.put(0, "value18");
 
-                Thread t = new Thread(() -> {
+                Future<?> fut = ForkJoinPool.commonPool().submit(() -> {
                     try (ClientTransaction tx1 = client.transactions().txStart(PESSIMISTIC, READ_COMMITTED)) {
                         cache.put(1, "value19");
 
@@ -857,8 +983,6 @@ public class FunctionalTest {
                     }
                 });
 
-                t.start();
-
                 barrier.await();
 
                 assertEquals("value9", cache.get(1));
@@ -871,14 +995,14 @@ public class FunctionalTest {
 
                 assertEquals("value19", cache.get(1));
 
-                t.join();
+                fut.get();
             }
 
             // Test transaction usage by different threads.
             try (ClientTransaction tx = client.transactions().txStart(PESSIMISTIC, READ_COMMITTED)) {
                 cache.put(0, "value20");
 
-                Thread t = new Thread(() -> {
+                ForkJoinPool.commonPool().submit(() -> {
                     // Implicit transaction started here.
                     cache.put(1, "value21");
 
@@ -898,11 +1022,7 @@ public class FunctionalTest {
                     tx.close();
 
                     assertEquals("value18", cache.get(0));
-                });
-
-                t.start();
-
-                t.join();
+                }).get();
 
                 assertEquals("value21", cache.get(1));
 
@@ -921,14 +1041,10 @@ public class FunctionalTest {
                 // Start implicit transaction after explicit transaction has been closed by another thread.
                 cache.put(0, "value22");
 
-                t = new Thread(() -> assertEquals("value22", cache.get(0)));
-
-                t.start();
-
-                t.join();
+                ForkJoinPool.commonPool().submit(() -> assertEquals("value22", cache.get(0))).get();
 
                 // New explicit transaction can be started after current transaction has been closed by another thread.
-                try (ClientTransaction tx1 = client.transactions().txStart(PESSIMISTIC, READ_COMMITTED)){
+                try (ClientTransaction tx1 = client.transactions().txStart(PESSIMISTIC, READ_COMMITTED)) {
                     cache.put(0, "value23");
 
                     tx1.commit();
@@ -951,11 +1067,12 @@ public class FunctionalTest {
                 t.join();
             }
 
-            try (ClientTransaction tx = client.transactions().txStart()) {
+            try (ClientTransaction ignored = client.transactions().txStart()) {
                 fail();
             }
-            catch (ClientServerError e) {
-                assertEquals(ClientStatus.TX_LIMIT_EXCEEDED, e.getCode());
+            catch (ClientException e) {
+                ClientServerError cause = (ClientServerError) e.getCause();
+                assertEquals(ClientStatus.TX_LIMIT_EXCEEDED, cause.getCode());
             }
 
             for (ClientTransaction tx : txs)
@@ -975,11 +1092,147 @@ public class FunctionalTest {
             // Test that implicit transaction started after commit of previous one without closing.
             cache.put(0, "value24");
 
-            Thread t = new Thread(() -> assertEquals("value24", cache.get(0)));
+            ForkJoinPool.commonPool().submit(() -> assertEquals("value24", cache.get(0))).get();
+        }
+    }
 
-            t.start();
+    /**
+     * Test transactions.
+     */
+    @Test
+    public void testTransactionsAsync() throws Exception {
+        try (Ignite ignored = Ignition.start(Config.getServerConfiguration());
+             IgniteClient client = Ignition.startClient(getClientConfiguration())
+        ) {
+            ClientCache<Integer, String> cache = client.createCache(new ClientCacheConfiguration()
+                    .setName("cache")
+                    .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
+            );
 
-            t.join();
+            cache.put(0, "value0");
+            cache.put(1, "value1");
+
+            // Test implicit rollback when transaction closed.
+            try (ClientTransaction tx = client.transactions().txStart()) {
+                cache.putAsync(1, "value2").get();
+            }
+
+            assertEquals("value1", cache.get(1));
+
+            // Test explicit rollback.
+            try (ClientTransaction tx = client.transactions().txStart()) {
+                cache.putAsync(1, "value2").get();
+
+                tx.rollback();
+            }
+
+            assertEquals("value1", cache.get(1));
+
+            // Test commit.
+            try (ClientTransaction tx = client.transactions().txStart()) {
+                cache.putAsync(1, "value2").get();
+
+                tx.commit();
+            }
+
+            assertEquals("value2", cache.get(1));
+        }
+    }
+
+    /**
+     * Test transactions with label.
+     */
+    @Test
+    public void testTransactionsWithLabel() throws Exception {
+        try (IgniteEx ignite = (IgniteEx)Ignition.start(Config.getServerConfiguration());
+             IgniteClient client = Ignition.startClient(getClientConfiguration())
+        ) {
+            ClientCache<Integer, String> cache = client.createCache(new ClientCacheConfiguration()
+                .setName("cache")
+                .setAtomicityMode(CacheAtomicityMode.TRANSACTIONAL)
+            );
+
+            SystemView<TransactionView> txsView = ignite.context().systemView().view(TXS_MON_LIST);
+
+            cache.put(0, "value1");
+
+            try (ClientTransaction tx = client.transactions().withLabel("label").txStart()) {
+                cache.put(0, "value2");
+
+                assertEquals(1, F.size(txsView.iterator()));
+
+                TransactionView txv = txsView.iterator().next();
+
+                assertEquals("label", txv.label());
+
+                assertEquals("value2", cache.get(0));
+            }
+
+            assertEquals("value1", cache.get(0));
+
+            try (ClientTransaction tx = client.transactions().withLabel("label1").withLabel("label2").txStart()) {
+                cache.put(0, "value2");
+
+                assertEquals(1, F.size(txsView.iterator()));
+
+                TransactionView txv = txsView.iterator().next();
+
+                assertEquals("label2", txv.label());
+
+                tx.commit();
+            }
+
+            assertEquals("value2", cache.get(0));
+
+            // Test concurrent with label and without label transactions.
+            try (ClientTransaction tx = client.transactions().withLabel("label").txStart(PESSIMISTIC, READ_COMMITTED)) {
+                CyclicBarrier barrier = new CyclicBarrier(2);
+
+                cache.put(0, "value3");
+
+                IgniteInternalFuture<?> fut = GridTestUtils.runAsync(() -> {
+                    try (ClientTransaction tx1 = client.transactions().txStart(PESSIMISTIC, READ_COMMITTED)) {
+                        cache.put(1, "value3");
+
+                        barrier.await();
+
+                        assertEquals("value2", cache.get(0));
+
+                        barrier.await();
+                    }
+                    catch (InterruptedException | BrokenBarrierException ignore) {
+                        // No-op.
+                    }
+                });
+
+                barrier.await();
+
+                assertNull(cache.get(1));
+
+                assertEquals(1, F.size(txsView.iterator(), txv -> txv.label() == null));
+                assertEquals(1, F.size(txsView.iterator(), txv -> "label".equals(txv.label())));
+
+                barrier.await();
+
+                fut.get();
+            }
+
+            // Test nested transactions is not possible.
+            try (ClientTransaction tx = client.transactions().withLabel("label1").txStart()) {
+                try (ClientTransaction tx1 = client.transactions().txStart()) {
+                    fail();
+                }
+                catch (ClientException expected) {
+                    // No-op.
+                }
+
+                try (ClientTransaction tx1 = client.transactions().withLabel("label2").txStart()) {
+                    fail();
+                }
+                catch (ClientException expected) {
+                    // No-op.
+                }
+            }
         }
     }
 
