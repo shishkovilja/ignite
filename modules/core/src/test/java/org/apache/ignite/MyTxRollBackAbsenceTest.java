@@ -30,7 +30,6 @@ import static org.apache.ignite.transactions.TransactionConcurrency.PESSIMISTIC;
 import static org.apache.ignite.transactions.TransactionIsolation.READ_COMMITTED;
 import static org.apache.ignite.transactions.TransactionState.COMMITTED;
 import static org.apache.ignite.transactions.TransactionState.ROLLED_BACK;
-import static org.apache.log4j.Level.DEBUG;
 import static org.junit.Assert.assertNotEquals;
 
 /**
@@ -38,33 +37,41 @@ import static org.junit.Assert.assertNotEquals;
  */
 @WithSystemProperty(key = IGNITE_WAL_LOG_TX_RECORDS, value = "true") /* Comment when testing Ignite from GridGain repository */
 public class MyTxRollBackAbsenceTest extends GridCommonAbstractTest {
+    /** {@inheritDoc} */
     @Override protected void beforeTest() throws Exception {
-        super.beforeTest();
-
-        startGridsMultiThreaded(2)
+        startGrids(2)
             .cluster()
             .active(true);
+
+        super.beforeTest();
     }
 
+    /** {@inheritDoc} */
     @Override protected void afterTest() throws Exception {
-        stopAllGrids();
+        try {
+            super.afterTest();
+        }
+        finally {
+            stopAllGrids();
 
-        cleanPersistenceDir();
-
-        super.afterTest();
+//            cleanPersistenceDir();
+        }
     }
 
+    /** {@inheritDoc} */
     @Override protected void beforeTestsStarted() throws Exception {
-        super.beforeTestsStarted();
 
         cleanPersistenceDir();
 
-        resetLog4j(DEBUG, true, "org.apache.ignite");
+//        resetLog4j(DEBUG, true, "org.apache.ignite");
 
         // Uncomment this when testing Ignite from GridGain repository
 //        withSystemProperty(IGNITE_WAL_LOG_TX_RECORDS, "true");
+
+        super.beforeTestsStarted();
     }
 
+    /** {@inheritDoc} */
     @Override protected IgniteConfiguration getConfiguration(String igniteInstanceName) throws Exception {
         IgniteConfiguration cfg = super.getConfiguration(igniteInstanceName);
 
