@@ -17,8 +17,10 @@
 
 package org.apache.ignite.examples;
 
+import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.Ignition;
+import org.apache.ignite.cluster.ClusterState;
 
 /**
  * Starts up an empty node with example compute configuration.
@@ -31,6 +33,8 @@ public class ExampleClientNodeStartup {
      * @throws IgniteException If failed.
      */
     public static void main(String[] args) throws IgniteException {
-        Ignition.start("examples/config/example-ignite-client.xml");
+        Ignite ignite = Ignition.start("examples/config/example-ignite-client.xml");
+
+        ignite.cluster().state(ClusterState.ACTIVE);
     }
 }
