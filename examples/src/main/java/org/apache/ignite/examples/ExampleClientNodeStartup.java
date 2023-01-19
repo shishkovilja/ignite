@@ -19,6 +19,7 @@ package org.apache.ignite.examples;
 
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
+import org.apache.ignite.IgniteSystemProperties;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.cluster.ClusterState;
 
@@ -33,6 +34,8 @@ public class ExampleClientNodeStartup {
      * @throws IgniteException If failed.
      */
     public static void main(String[] args) throws IgniteException {
+        System.setProperty(IgniteSystemProperties.IGNITE_QUIET, String.valueOf(false));
+
         Ignite ignite = Ignition.start("examples/config/example-ignite-client.xml");
 
         ignite.cluster().state(ClusterState.ACTIVE);
