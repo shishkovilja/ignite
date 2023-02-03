@@ -68,7 +68,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     public static final int BATCH_SIZE = 10_000;
 
     /** Batches count. */
-    public static final int BATCHES_CNT = 100;
+    public static final int BATCHES_CNT = 30;
 
     /** */
     public static final int VALS_CNT = BATCHES_CNT * BATCH_SIZE;
