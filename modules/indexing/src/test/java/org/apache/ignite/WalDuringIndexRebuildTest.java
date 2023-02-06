@@ -63,12 +63,13 @@ import static org.apache.ignite.internal.util.IgniteUtils.MB;
 
 /** */
 @RunWith(Parameterized.class)
+@SuppressWarnings({"resource", "deprecation"})
 public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     /** Batch size. */
     public static final int BATCH_SIZE = 10_000;
 
     /** Batches count. */
-    public static final int BATCHES_CNT = 30;
+    public static final int BATCHES_CNT = 100;
 
     /** */
     public static final int VALS_CNT = BATCHES_CNT * BATCH_SIZE;
@@ -77,7 +78,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     public static final String SEP = File.separator;
 
     /** Rebuild type. */
-    @Parameter(0)
+    @Parameter
     public RebuildType rebuildType;
 
     /** Wal mode. */
@@ -135,11 +136,12 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     public void testIndexRebuild() throws Exception {
         startGrid(0).cluster().state(ACTIVE);
 
-        createAndPopulateCache();
+        createAndPopulateCache(grid(0), DEFAULT_CACHE_NAME);
 
         forceCheckpoint(grid(0));
 
         WALPointer walPrtBefore = walPtr(grid(0));
+        long walIdxBefore = curWalIdx(grid(0));
 
         String dirName = grid(0).name().replace(".", "_");
 
@@ -185,10 +187,14 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
 
         forceCheckpoint(grid(0));
 
-        Map<RecordType, Long> recTypesBeforeIdxRebuild = countWalRecordsByTypes(dirName,
+        long walIdxAfter = curWalIdx(grid(0));
+
+        log.warning(">>>>>> Index rebuild generated " + (walIdxAfter - walIdxBefore) + " segments");
+
+        Map<RecordType, Long> recTypesBefore = countWalRecordsByTypes(dirName,
             (rt, wp) -> wp.compareTo(walPrtBefore) <= 0);
 
-        Map<RecordType, Long> recTypesAfterIdxRebuild = countWalRecordsByTypes(dirName,
+        Map<RecordType, Long> recTypesAfter = countWalRecordsByTypes(dirName,
             (rt, wp) -> wp.compareTo(walPrtBefore) > 0);
 
         StringBuilder msgBuilder = new StringBuilder(">>>>>> WalRecords comparison:\n")
@@ -198,13 +204,28 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
         for (RecordType recType : RecordType.values()) {
             msgBuilder.append(String.format("%-62.60s%-30.28s%-30.28s\n",
                 recType,
-                recTypesBeforeIdxRebuild.get(recType),
-                recTypesAfterIdxRebuild.get(recType)));
+                recTypesBefore.get(recType),
+                recTypesAfter.get(recType)));
         }
 
         log.warning(msgBuilder.toString());
 
         idxFile(dirName);
+    }
+
+    /**
+     * @param ignite Ignite.
+     */
+    private long curWalIdx(IgniteEx ignite) {
+        long curWalIdx = ignite.context()
+            .cache()
+            .context()
+            .wal()
+            .currentSegment();
+
+        log.warning(">>>>>> Current WAL segment index: " + curWalIdx);
+
+        return curWalIdx;
     }
 
     /**
@@ -217,7 +238,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
             .wal()
             .lastWritePointer();
 
-        log.warning(">>>>>> Last WalPointer: " + ptr);
+        log.warning(">>>>>> Last warite WALPointer: " + ptr);
 
         return ptr;
     }
@@ -225,9 +246,9 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     /**
      *
      */
-    private void createAndPopulateCache() {
-        IgniteCache<Integer, TestVal> cache = grid(0).getOrCreateCache(
-            new CacheConfiguration<Integer, TestVal>(DEFAULT_CACHE_NAME)
+    private void createAndPopulateCache(IgniteEx ignite, String cacheName) {
+        IgniteCache<Integer, TestVal> cache = ignite.getOrCreateCache(
+            new CacheConfiguration<Integer, TestVal>(cacheName)
                 .setIndexedTypes(Integer.class, TestVal.class));
 
         for (int i = 0; i < VALS_CNT / BATCH_SIZE; i++) {
@@ -302,6 +323,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     }
 
     /** */
+    @SuppressWarnings("unused")
     public static class TestVal {
         /** Field 0. */
         @QuerySqlField(index = true, inlineSize = 128)
@@ -338,6 +360,6 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
         REMOVE_INDEX_FILE,
 
         /** Force index rebuild. */
-        FORCE_INDEX_REBUILD;
+        FORCE_INDEX_REBUILD
     }
 }
