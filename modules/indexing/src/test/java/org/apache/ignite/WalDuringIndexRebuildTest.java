@@ -22,12 +22,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.ignite.cache.query.annotations.QuerySqlField;
+import org.apache.ignite.binary.BinaryObject;
+import org.apache.ignite.binary.BinaryObjectBuilder;
+import org.apache.ignite.cache.QueryEntity;
+import org.apache.ignite.cache.QueryIndex;
 import org.apache.ignite.configuration.CacheConfiguration;
 import org.apache.ignite.configuration.DataRegionConfiguration;
 import org.apache.ignite.configuration.DataStorageConfiguration;
@@ -51,11 +56,11 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import static org.apache.ignite.WalDuringIndexRebuildTest.RebuildType.REMOVE_INDEX_FILE;
 import static org.apache.ignite.cluster.ClusterState.ACTIVE;
 import static org.apache.ignite.cluster.ClusterState.INACTIVE;
 import static org.apache.ignite.configuration.DataStorageConfiguration.UNLIMITED_WAL_ARCHIVE;
 import static org.apache.ignite.configuration.WALMode.DEFAULT;
-import static org.apache.ignite.WalDuringIndexRebuildTest.RebuildType.REMOVE_INDEX_FILE;
 import static org.apache.ignite.internal.processors.cache.GridCacheUtils.cacheId;
 import static org.apache.ignite.internal.processors.cache.persistence.file.FilePageStoreManager.DFLT_STORE_DIR;
 import static org.apache.ignite.internal.util.IgniteUtils.GB;
@@ -69,10 +74,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
     public static final int BATCH_SIZE = 10_000;
 
     /** Batches count. */
-    public static final int BATCHES_CNT = 100;
-
-    /** */
-    public static final int VALS_CNT = BATCHES_CNT * BATCH_SIZE;
+    public static final int BATCHES_CNT = 10;
 
     /** Separator. */
     public static final String SEP = File.separator;
@@ -247,15 +249,46 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
      *
      */
     private void createAndPopulateCache(IgniteEx ignite, String cacheName) {
-        IgniteCache<Integer, TestVal> cache = ignite.getOrCreateCache(
-            new CacheConfiguration<Integer, TestVal>(cacheName)
-                .setIndexedTypes(Integer.class, TestVal.class));
+        int fieldsCnt = 50;
 
-        for (int i = 0; i < VALS_CNT / BATCH_SIZE; i++) {
-            Map<Integer, TestVal> vals = new HashMap<>(BATCH_SIZE);
+        LinkedHashMap<String, String> fields = new LinkedHashMap<>(fieldsCnt);
+        List<QueryIndex> indexes = new ArrayList<>(fieldsCnt);
+
+
+        for (int i = 0; i < fieldsCnt; i++) {
+            String fieldName = "F" + i;
+
+            fields.put(fieldName, String.class.getName());
+
+            indexes.add(new QueryIndex(fieldName)
+                .setInlineSize(128));
+        }
+
+        String testCls = "TestVal";
+
+        QueryEntity qryEntity = new QueryEntity()
+            .setKeyType(Integer.class.getName())
+            .setValueType(testCls)
+            .setFields(fields)
+            .setIndexes(indexes);
+
+        IgniteCache<Integer, BinaryObject> cache = ignite.getOrCreateCache(
+            new CacheConfiguration<>(cacheName)
+                .setQueryEntities(Collections.singleton(qryEntity)))
+            .withKeepBinary();
+
+        BinaryObjectBuilder binObjBuilder = ignite.binary().builder(testCls);
+
+        for (String field : fields.keySet())
+            binObjBuilder.setField(field, UUID.randomUUID().toString());
+
+        BinaryObject binObj = binObjBuilder.build();
+
+        for (int i = 0; i < BATCHES_CNT; i++) {
+            Map<Integer, BinaryObject> vals = new HashMap<>(BATCH_SIZE);
 
             for (int j = 0; j < BATCH_SIZE; j++)
-                vals.put(j + i * BATCH_SIZE, new TestVal());
+                vals.put(j + i * BATCH_SIZE, binObj);
 
             cache.putAll(vals);
 
@@ -263,6 +296,9 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
         }
 
         log.warning(">>>>>> Puts finished.");
+
+        assertTrue("Unexpected indexes count", ignite.context().indexProcessor()
+            .indexes(cacheName).size() >= fieldsCnt);
     }
 
     /**
@@ -280,7 +316,7 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
 
         assertNotNull("Index file not found", idxFile);
 
-        log.warning(">>>>>>> Index file size: " + Files.size(idxFile) / MB + " MB");
+        log.warning(">>>>>> Index file size: " + Files.size(idxFile) / MB + " MB");
 
         return idxFile;
     }
@@ -320,36 +356,6 @@ public class WalDuringIndexRebuildTest extends GridCommonAbstractTest {
         }
 
         return cntByRecTypes;
-    }
-
-    /** */
-    @SuppressWarnings("unused")
-    public static class TestVal {
-        /** Field 0. */
-        @QuerySqlField(index = true, inlineSize = 128)
-        private final String f0;
-
-        /** Field 1. */
-        @QuerySqlField(index = true, inlineSize = 128)
-        private final String f1;
-
-        /** Field 3. */
-        @QuerySqlField(index = true, inlineSize = 128)
-        private final String f2;
-
-        /** Field 4. */
-        @QuerySqlField(index = true, inlineSize = 128)
-        private final String f3;
-
-        /**
-         * Default constructor.
-         */
-        public TestVal() {
-            f0 = UUID.randomUUID().toString();
-            f1 = UUID.randomUUID().toString();
-            f2 = UUID.randomUUID().toString();
-            f3 = UUID.randomUUID().toString();
-        }
     }
 
     /**
