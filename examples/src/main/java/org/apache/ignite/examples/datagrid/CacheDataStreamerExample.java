@@ -22,6 +22,7 @@ import org.apache.ignite.IgniteCache;
 import org.apache.ignite.IgniteDataStreamer;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.Ignition;
+import org.apache.ignite.cache.CachePeekMode;
 import org.apache.ignite.examples.ExampleNodeStartup;
 import org.apache.ignite.examples.ExamplesUtils;
 
@@ -42,7 +43,7 @@ public class CacheDataStreamerExample {
     private static final String CACHE_NAME = CacheDataStreamerExample.class.getSimpleName();
 
     /** Number of entries to load. */
-    private static final int ENTRY_COUNT = 500000;
+    private static final int ENTRY_COUNT = 500000 * 5;
 
     /** Heap size required to run this example. */
     public static final int MIN_MEMORY = 512 * 1024 * 1024;
@@ -69,7 +70,9 @@ public class CacheDataStreamerExample {
                     stmr.perNodeBufferSize(1024);
                     stmr.perNodeParallelOperations(8);
 
-                    for (int i = 0; i < ENTRY_COUNT; i++) {
+                    int caceSz = cache.size(CachePeekMode.PRIMARY);
+
+                    for (int i = caceSz; i < caceSz + ENTRY_COUNT; i++) {
                         stmr.addData(i, Integer.toString(i));
 
                         // Print out progress while loading cache.
@@ -82,10 +85,10 @@ public class CacheDataStreamerExample {
 
                 System.out.println(">>> Loaded " + ENTRY_COUNT + " keys in " + (end - start) + "ms.");
             }
-            finally {
-                // Distributed cache could be removed from cluster only by #destroyCache() call.
-                ignite.destroyCache(CACHE_NAME);
-            }
+//            finally {
+//                // Distributed cache could be removed from cluster only by #destroyCache() call.
+//                ignite.destroyCache(CACHE_NAME);
+//            }
         }
     }
 }

@@ -55,8 +55,27 @@
                 <property name="defaultDataRegionConfiguration">
                     <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
                         <property name="persistenceEnabled" value="true"/>
+                        <property name="metricsEnabled" value="true"/>
                     </bean>
                 </property>
+
+                <property name="dataRegionConfigurations">
+                    <list>
+                        <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+                            <property name="name" value="region1"/>
+                            <property name="persistenceEnabled" value="false"/>
+                            <property name="metricsEnabled" value="true"/>
+                        </bean>
+
+                        <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+                            <property name="name" value="region2"/>
+                            <property name="persistenceEnabled" value="false"/>
+                            <property name="metricsEnabled" value="true"/>
+                        </bean>
+                    </list>
+                </property>
+
+                <property name="metricsEnabled" value="true"/>
             </bean>
         </property>
 
