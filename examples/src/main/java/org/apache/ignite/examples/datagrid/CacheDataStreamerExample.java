@@ -19,12 +19,18 @@ package org.apache.ignite.examples.datagrid;
 
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
+import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteDataStreamer;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.Ignition;
 import org.apache.ignite.cache.CachePeekMode;
+import org.apache.ignite.configuration.CacheConfiguration;
+import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.examples.ExampleNodeStartup;
 import org.apache.ignite.examples.ExamplesUtils;
+import org.apache.ignite.internal.IgnitionEx;
+import org.apache.ignite.internal.processors.resource.GridSpringResourceContext;
+import org.apache.ignite.lang.IgniteBiTuple;
 
 /**
  * Demonstrates how cache can be populated with data utilizing {@link IgniteDataStreamer} API.
@@ -54,15 +60,20 @@ public class CacheDataStreamerExample {
      * @param args Command line arguments, none required.
      * @throws IgniteException If example execution failed.
      */
-    public static void main(String[] args) throws IgniteException {
+    public static void main(String[] args) throws IgniteException, IgniteCheckedException {
         ExamplesUtils.checkMinMemory(MIN_MEMORY);
 
-        try (Ignite ignite = Ignition.start("examples/config/example-ignite.xml")) {
+        IgniteBiTuple<IgniteConfiguration, GridSpringResourceContext> cfg =
+                IgnitionEx.loadConfiguration("examples/config/example-ignite.xml");
+        cfg.get1().setClientMode(true);
+
+        try (Ignite ignite = Ignition.start(cfg.get1())) {
             System.out.println();
             System.out.println(">>> Cache data streamer example started.");
 
             // Auto-close cache at the end of the example.
-            try (IgniteCache<Integer, String> cache = ignite.getOrCreateCache(CACHE_NAME)) {
+            try (IgniteCache<Integer, String> cache = ignite.getOrCreateCache(
+                    new CacheConfiguration<Integer, String>(CACHE_NAME).setBackups(1))) {
                 long start = System.currentTimeMillis();
 
                 try (IgniteDataStreamer<Integer, String> stmr = ignite.dataStreamer(CACHE_NAME)) {
