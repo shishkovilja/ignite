@@ -261,6 +261,9 @@ public abstract class IgniteCompatibilityAbstractTest extends GridCommonAbstract
         dependencies.add(new Dependency("core", "ignite-core", false));
         dependencies.add(new Dependency("core", "ignite-core", true));
 
+        dependencies.add(new Dependency("control-utility", "ignite-control-utility", false));
+        dependencies.add(new Dependency("control-utility", "ignite-control-utility", true));
+
         if (IgniteProductVersion.fromString("2.14.0").compareTo(IgniteProductVersion.fromString(igniteVer)) > 0)
             dependencies.add(new Dependency("log4j", "log4j", "log4j", "1.2.17", false));
 
