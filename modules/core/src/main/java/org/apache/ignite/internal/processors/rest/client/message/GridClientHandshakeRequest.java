@@ -40,7 +40,7 @@ public class GridClientHandshakeRequest extends GridClientAbstractMessage {
     static final int PACKET_SIZE = 5;
 
     /** Protocol version. */
-    private static final short PROTO_VER = 1;
+    private static final short PROTO_VER = 2;
 
     /** Handshake byte array. */
     private byte[] arr;

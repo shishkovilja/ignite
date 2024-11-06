@@ -15,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assume;
 
 import static org.apache.ignite.internal.commandline.CommandHandler.EXIT_CODE_OK;
+import static org.apache.ignite.internal.commandline.CommandHandler.EXIT_CODE_UNEXPECTED_ERROR;
+import static org.apache.ignite.internal.management.api.CommandUtils.VERSION_MISMATCH_MESSAGE;
 
 /** */
 public class CommandHandlerCompatibilityTest extends AbstractClientCompatibilityTest {
@@ -53,14 +55,27 @@ public class CommandHandlerCompatibilityTest extends AbstractClientCompatibility
         ByteArrayOutputStream testOut = new ByteArrayOutputStream();
         System.setOut(new PrintStream(testOut));
 
+        boolean verMismatch = !clientVer.equals(serverVer);
+
+        String testOutStr = "";
+
         try {
-            assertEquals(EXIT_CODE_OK, new CommandHandler().execute(List.of("--baseline")));
+            int exitCode = new CommandHandler().execute(List.of("--baseline"));
+
+            testOut.flush();
+            testOutStr = testOut.toString();
+
+            int expCode = verMismatch ? EXIT_CODE_UNEXPECTED_ERROR : EXIT_CODE_OK;
+
+            assertEquals(expCode, exitCode);
+
+            if (verMismatch)
+                assertTrue(testOutStr.contains(String.format(VERSION_MISMATCH_MESSAGE, serverVer, clientVer)));
         }
         finally {
-            testOut.flush();
             System.setOut(out);
 
-            X.print(">>>>>> Test output: " + U.nl() + testOut);
+            X.print(">>>>>> Test output: " + U.nl() + testOutStr);
         }
     }
 }

@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.cluster.ClusterNode;
+import org.apache.ignite.internal.IgniteVersionUtils;
 import org.apache.ignite.internal.client.GridClient;
 import org.apache.ignite.internal.client.GridClientCacheMode;
 import org.apache.ignite.internal.client.GridClientCompute;
@@ -57,9 +58,11 @@ import org.apache.ignite.internal.visor.VisorMultiNodeTask;
 import org.apache.ignite.internal.visor.VisorTaskArgument;
 import org.apache.ignite.internal.visor.VisorTaskResult;
 import org.apache.ignite.lang.IgniteExperimental;
+import org.apache.ignite.lang.IgniteProductVersion;
 import org.apache.ignite.lang.IgniteUuid;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.ignite.internal.IgniteNodeAttributes.ATTR_BUILD_VER;
 import static org.apache.ignite.internal.management.api.Command.CMD_NAME_POSTFIX;
 
 /**
@@ -80,6 +83,9 @@ public class CommandUtils {
 
     /** Double indent for help output. */
     public static final String DOUBLE_INDENT = INDENT + INDENT;
+
+    /** Version mismatch message. */
+    public static final String VERSION_MISMATCH_MESSAGE = "Version mismatch: [nodeVer=%s, cliVer=%s]";
 
     /**
      * Example: {@code "SystemView" -> "system-view"}.
@@ -769,6 +775,17 @@ public class CommandUtils {
         A arg,
         Collection<GridClientNode> nodes
     ) throws Exception {
+        String nodeVerAttr = (String)nodes.stream()
+            .map(n -> n.attribute(ATTR_BUILD_VER))
+            .findAny()
+            .orElseThrow(() -> new IgniteException("Can not find any node."));
+
+        IgniteProductVersion nodeVer = IgniteProductVersion.fromString(nodeVerAttr);
+        IgniteProductVersion cliVer = IgniteVersionUtils.VER;
+
+        if (!nodeVer.equals(cliVer))
+            throw new IgniteException(String.format(VERSION_MISMATCH_MESSAGE, nodeVer, cliVer));
+
         Collection<UUID> nodesIds = nodes.stream()
             .map(GridClientNode::nodeId)
             .collect(Collectors.toList());

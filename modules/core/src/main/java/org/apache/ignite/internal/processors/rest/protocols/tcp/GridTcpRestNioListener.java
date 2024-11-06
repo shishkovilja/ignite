@@ -138,7 +138,7 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
         cacheCmdMap.put(APPEND, CACHE_APPEND);
         cacheCmdMap.put(PREPEND, CACHE_PREPEND);
 
-        SUPP_VERS.add((short)1);
+        SUPP_VERS.add((short)2);
     }
 
     /** */
@@ -230,6 +230,8 @@ public class GridTcpRestNioListener extends GridNioServerListenerAdapter<GridCli
                 U.error(log, "Client protocol version is not supported [ses=" + ses +
                     ", ver=" + ver +
                     ", supported=" + SUPP_VERS + ']');
+
+                ses.send(GridClientHandshakeResponse.PROTOCOL_MISMATCH);
 
                 onSessionClosed(ses);
             }
