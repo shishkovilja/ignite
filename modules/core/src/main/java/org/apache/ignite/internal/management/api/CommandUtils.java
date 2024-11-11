@@ -775,16 +775,16 @@ public class CommandUtils {
         A arg,
         Collection<GridClientNode> nodes
     ) throws Exception {
-        String nodeVerAttr = (String)nodes.stream()
-            .map(n -> n.attribute(ATTR_BUILD_VER))
-            .findAny()
-            .orElseThrow(() -> new IgniteException("Can not find any node."));
-
-        IgniteProductVersion nodeVer = IgniteProductVersion.fromString(nodeVerAttr);
-        IgniteProductVersion cliVer = IgniteVersionUtils.VER;
-
-        if (!nodeVer.equals(cliVer))
-            throw new IgniteException(String.format(VERSION_MISMATCH_MESSAGE, nodeVer, cliVer));
+//        String nodeVerAttr = (String)nodes.stream()
+//            .map(n -> n.attribute(ATTR_BUILD_VER))
+//            .findAny()
+//            .orElseThrow(() -> new IgniteException("Can not find any node."));
+//
+//        IgniteProductVersion nodeVer = IgniteProductVersion.fromString(nodeVerAttr);
+//        IgniteProductVersion cliVer = IgniteVersionUtils.VER;
+//
+//        if (!nodeVer.equals(cliVer))
+//            throw new IgniteException(String.format(VERSION_MISMATCH_MESSAGE, nodeVer, cliVer));
 
         Collection<UUID> nodesIds = nodes.stream()
             .map(GridClientNode::nodeId)

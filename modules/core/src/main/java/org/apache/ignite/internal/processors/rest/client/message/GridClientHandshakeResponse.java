@@ -31,14 +31,14 @@ public class GridClientHandshakeResponse extends GridClientAbstractMessage {
     public static final byte CODE_OK = 0;
 
     /** */
-    public static final byte CODE_PROTOCOL_MISMATCH = 1;
+//    public static final byte CODE_PROTOCOL_MISMATCH = 1;
 
     /** Response, indicating successful handshake. */
     public static final GridClientHandshakeResponse OK = new GridClientHandshakeResponse(CODE_OK);
 
-    /** Response for case of protocol mismatch. */
-    public static final GridClientHandshakeResponse PROTOCOL_MISMATCH =
-        new GridClientHandshakeResponse(CODE_PROTOCOL_MISMATCH);
+//    /** Response for case of protocol mismatch. */
+//    public static final GridClientHandshakeResponse PROTOCOL_MISMATCH =
+//        new GridClientHandshakeResponse(CODE_PROTOCOL_MISMATCH);
 
     /** */
     private byte resCode;

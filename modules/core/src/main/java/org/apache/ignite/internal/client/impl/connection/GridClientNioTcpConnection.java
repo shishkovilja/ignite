@@ -41,6 +41,7 @@ import javax.net.ssl.SSLContext;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.cluster.ClusterState;
 import org.apache.ignite.internal.IgniteInternalFuture;
+import org.apache.ignite.internal.IgniteVersionUtils;
 import org.apache.ignite.internal.client.GridClientAuthenticationException;
 import org.apache.ignite.internal.client.GridClientCacheFlag;
 import org.apache.ignite.internal.client.GridClientCacheMode;
@@ -64,6 +65,7 @@ import org.apache.ignite.internal.processors.rest.client.message.GridClientClust
 import org.apache.ignite.internal.processors.rest.client.message.GridClientClusterStateRequest;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientClusterStateRequestV2;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientHandshakeRequest;
+import org.apache.ignite.internal.processors.rest.client.message.GridClientHandshakeRequestV2;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientMessage;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientNodeBean;
 import org.apache.ignite.internal.processors.rest.client.message.GridClientNodeMetricsBean;
@@ -83,6 +85,7 @@ import org.apache.ignite.internal.util.nio.GridNioSessionMetaKey;
 import org.apache.ignite.internal.util.nio.ssl.GridNioSslFilter;
 import org.apache.ignite.internal.util.typedef.CI1;
 import org.apache.ignite.internal.util.typedef.F;
+import org.apache.ignite.lang.IgniteProductVersion;
 import org.apache.ignite.plugin.security.SecurityCredentials;
 import org.jetbrains.annotations.Nullable;
 
@@ -248,7 +251,7 @@ public class GridClientNioTcpConnection extends GridClientConnection {
 
             ses = sesFut.get();
 
-            GridClientHandshakeRequest req = new GridClientHandshakeRequest();
+            GridClientHandshakeRequest req = new GridClientHandshakeRequestV2(IgniteVersionUtils.VER);
 
             if (marshId != null)
                 req.marshallerId(marshId);
