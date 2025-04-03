@@ -51,6 +51,7 @@ import org.apache.ignite.internal.util.tostring.GridToStringExclude;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.apache.ignite.marshaller.MarshallerExclusions;
 import org.jetbrains.annotations.Nullable;
 
@@ -1106,7 +1107,7 @@ public class BinaryClassDescriptor {
         assert cls != null;
 
         try {
-            Constructor<?> ctor = U.forceEmptyConstructor(cls);
+            Constructor<?> ctor = UC.forceEmptyConstructor(cls);
 
             if (ctor == null)
                 throw new BinaryObjectException("Failed to find empty constructor for class: " + cls.getName());

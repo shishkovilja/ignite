@@ -64,6 +64,7 @@ import org.apache.ignite.internal.util.typedef.P1;
 import org.apache.ignite.internal.util.typedef.X;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.apache.ignite.lang.IgniteFuture;
 import org.apache.ignite.lang.IgnitePredicate;
 import org.apache.ignite.lang.IgniteUuid;
@@ -588,7 +589,7 @@ public class GridCacheMvccManager extends GridCacheSharedManagerAdapter {
             Collection<GridCacheVersionedFuture<?>> old = verFuts.get(fut.version());
 
             if (old == null) {
-                Collection<GridCacheVersionedFuture<?>> col = new HashSet<GridCacheVersionedFuture<?>>(U.capacity(1), 0.75f) {
+                Collection<GridCacheVersionedFuture<?>> col = new HashSet<GridCacheVersionedFuture<?>>(UC.capacity(1), 0.75f) {
                     {
                         // Make sure that we add future to queue before
                         // adding queue to the map of futures.

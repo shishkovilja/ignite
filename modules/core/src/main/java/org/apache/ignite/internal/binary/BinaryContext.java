@@ -80,6 +80,7 @@ import org.apache.ignite.internal.util.lang.GridMapEntry;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.T2;
 import org.apache.ignite.internal.util.typedef.internal.U;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.apache.ignite.lang.IgniteBiTuple;
 import org.apache.ignite.lang.IgniteUuid;
 import org.apache.ignite.marshaller.MarshallerContext;
@@ -276,7 +277,7 @@ public class BinaryContext {
 
         // IDs range [200..1000] is used by Ignite internal APIs.
 
-        if (U.sunReflectionFactory() == null) {
+        if (UC.sunReflectionFactory() == null) {
             U.warn(log, "ReflectionFactory not found, deserialization of binary objects for classes without " +
                 "default constructor is not possible");
         }

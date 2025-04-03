@@ -41,6 +41,7 @@ import org.apache.ignite.internal.util.typedef.T2;
 import org.apache.ignite.internal.util.typedef.internal.LT;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.apache.ignite.marshaller.Marshaller;
 import org.apache.ignite.resources.IgniteInstanceResource;
 import org.apache.ignite.resources.LoggerResource;
@@ -326,7 +327,7 @@ public class TcpDiscoveryMulticastIpFinder extends TcpDiscoveryVmIpFinder {
 
         addrSnds = new ArrayList<>(locAddrs.size());
 
-        reqItfs = new HashSet<>(U.capacity(locAddrs.size())); // Interfaces used to send requests.
+        reqItfs = new HashSet<>(UC.capacity(locAddrs.size())); // Interfaces used to send requests.
 
         for (InetAddress addr : locAddrs) {
             try {

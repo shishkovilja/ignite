@@ -170,6 +170,7 @@ import org.apache.ignite.internal.util.typedef.internal.A;
 import org.apache.ignite.internal.util.typedef.internal.CU;
 import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.apache.ignite.lang.IgniteBiTuple;
 import org.apache.ignite.lang.IgniteClosure;
 import org.apache.ignite.lang.IgniteFuture;
@@ -5207,7 +5208,7 @@ public class GridCacheProcessor extends GridProcessorAdapter {
     public void enableStatistics(Collection<String> cacheNames, boolean enabled) throws IgniteCheckedException {
         Collection<IgniteInternalCache> caches = manageStatisticsCaches(cacheNames);
 
-        Collection<String> globalCaches = new HashSet<>(U.capacity(caches.size()));
+        Collection<String> globalCaches = new HashSet<>(UC.capacity(caches.size()));
 
         for (IgniteInternalCache cache : caches) {
             cache.context().statisticsEnabled(enabled);
@@ -5237,7 +5238,7 @@ public class GridCacheProcessor extends GridProcessorAdapter {
     public void clearStatistics(Collection<String> cacheNames) throws IgniteCheckedException {
         Collection<IgniteInternalCache> caches = manageStatisticsCaches(cacheNames);
 
-        Collection<String> globalCaches = new HashSet<>(U.capacity(caches.size()));
+        Collection<String> globalCaches = new HashSet<>(UC.capacity(caches.size()));
 
         for (IgniteInternalCache cache : caches)
             globalCaches.add(cache.name());

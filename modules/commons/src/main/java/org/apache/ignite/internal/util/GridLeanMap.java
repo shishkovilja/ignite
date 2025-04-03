@@ -27,6 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.ignite.internal.util.typedef.internal.A;
+import org.apache.ignite.internal.util.typedef.internal.UC;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -77,7 +78,7 @@ public class GridLeanMap<K, V> extends GridSerializableMap<K, V> implements Clon
         else if (size == 5)
             map = new Map5<>();
         else
-            map = new LeanHashMap<>(IgniteUtils.capacity(size), 0.75f);
+            map = new LeanHashMap<>(UC.capacity(size), 0.75f);
     }
 
     /**

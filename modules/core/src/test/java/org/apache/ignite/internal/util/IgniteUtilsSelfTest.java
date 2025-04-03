@@ -205,34 +205,6 @@ public class IgniteUtilsSelfTest extends GridCommonAbstractTest {
      * @throws Exception If failed.
      */
     @Test
-    public void testFormatMins() throws Exception {
-        printFormatMins(0);
-        printFormatMins(1);
-        printFormatMins(2);
-        printFormatMins(59);
-        printFormatMins(60);
-        printFormatMins(61);
-        printFormatMins(60 * 24 - 1);
-        printFormatMins(60 * 24);
-        printFormatMins(60 * 24 + 1);
-        printFormatMins(5 * 60 * 24 - 1);
-        printFormatMins(5 * 60 * 24);
-        printFormatMins(5 * 60 * 24 + 1);
-    }
-
-    /**
-     * Helper method for {@link #testFormatMins()}
-     *
-     * @param mins Minutes to test.
-     */
-    private void printFormatMins(long mins) {
-        System.out.println("For " + mins + " minutes: " + X.formatMins(mins));
-    }
-
-    /**
-     * @throws Exception If failed.
-     */
-    @Test
     public void testOs() throws Exception {
         System.out.println("OS string: " + U.osString());
         System.out.println("JDK string: " + U.jdkString());
