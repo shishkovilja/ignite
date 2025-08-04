@@ -72,5 +72,47 @@
                 </property>
             </bean>
         </property>
+
+        <!-- Memory configuration. -->
+        <property name="dataStorageConfiguration">
+            <bean class="org.apache.ignite.configuration.DataStorageConfiguration">
+                <property name="defaultDataRegionConfiguration">
+                    <bean class="org.apache.ignite.configuration.DataRegionConfiguration">
+                        <property name="initialSize" value="#{1.25 * 1024 * 1024 * 1024}"/>
+                        <property name="maxSize" value="#{1.25 * 1024 * 1024 * 1024}"/>
+                        <property name="pageEvictionMode" value="RANDOM_LRU"/>
+                        <property name="emptyPagesPoolSize" value="10000" />
+                    </bean>
+                </property>
+            </bean>
+        </property>
+
+        <property name="cacheConfiguration">
+            <list>
+                <!--
+                 Partitioned cache example configuration (Atomic mode).
+                -->
+                <bean parent="cache-template">
+                    <property name="name" value="wwwplm-v1"/>
+                    <property name="cacheMode" value="PARTITIONED"/>
+                    <property name="atomicityMode" value="ATOMIC"/>
+                    <property name="backups" value="1"/>
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+    <!--  Template for all example cache configurations.  -->
+    <bean id="cache-template" abstract="true" class="org.apache.ignite.configuration.CacheConfiguration">
+<!--        <property name="nearConfiguration">-->
+<!--            <bean class="org.apache.ignite.configuration.NearCacheConfiguration">-->
+<!--                <property name="nearStartSize" value="30000"/>-->
+<!--                <property name="nearEvictionPolicyFactory">-->
+<!--                    <bean class="org.apache.ignite.cache.eviction.lru.LruEvictionPolicyFactory">-->
+<!--                        <property name="maxMemorySize" value="#{1.25 * 1024 * 1024 * 1024}"/>-->
+<!--                    </bean>-->
+<!--                </property>-->
+<!--            </bean>-->
+<!--        </property>-->
     </bean>
 </beans>

@@ -18,6 +18,7 @@
 package org.apache.ignite.examples;
 
 import org.apache.ignite.IgniteException;
+import org.apache.ignite.IgniteSystemProperties;
 import org.apache.ignite.Ignition;
 
 /**
@@ -31,6 +32,8 @@ public class ExampleNodeStartup {
      * @throws IgniteException If failed.
      */
     public static void main(String[] args) throws IgniteException {
+        System.setProperty(IgniteSystemProperties.IGNITE_QUIET, "false");
+
         Ignition.start("examples/config/example-ignite.xml");
     }
 }
