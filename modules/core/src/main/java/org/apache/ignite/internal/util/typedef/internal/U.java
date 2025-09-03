@@ -17,6 +17,9 @@
 
 package org.apache.ignite.internal.util.typedef.internal;
 
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.ignite.internal.util.IgniteUtils;
 
 /**

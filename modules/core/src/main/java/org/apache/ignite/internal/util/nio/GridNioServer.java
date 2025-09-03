@@ -55,6 +55,7 @@ import org.apache.ignite.configuration.ConnectorConfiguration;
 import org.apache.ignite.internal.IgniteInternalFuture;
 import org.apache.ignite.internal.IgniteInterruptedCheckedException;
 import org.apache.ignite.internal.managers.communication.GridIoMessage;
+import org.apache.ignite.internal.processors.cache.distributed.dht.atomic.GridDhtAtomicAbstractUpdateRequest;
 import org.apache.ignite.internal.processors.metric.MetricRegistryImpl;
 import org.apache.ignite.internal.processors.metric.impl.LongAdderMetric;
 import org.apache.ignite.internal.processors.tracing.MTC;
@@ -3371,7 +3372,15 @@ public class GridNioServer<T> {
 
         /** {@inheritDoc} */
         @Override public void onAckReceived() {
-            assert msg instanceof Message;
+            assert msg instanceof GridIoMessage : msg;
+
+            if (((GridIoMessage)msg).message() instanceof GridDhtAtomicAbstractUpdateRequest) {
+                U.printStacktrace("WriteRequestImpl#onAckReceived");
+
+                Message req = ((GridIoMessage)msg).message();
+
+                System.err.println(">>>>>> WriteRequestImpl#onAckReceived: " + req.getClass().getName() + "@" + Integer.toHexString(req.hashCode()));
+            }
 
             ((Message)msg).onAckReceived();
         }
@@ -3607,7 +3616,15 @@ public class GridNioServer<T> {
 
         /** {@inheritDoc} */
         @Override public void onAckReceived() {
-            assert msg instanceof Message : msg;
+            assert msg instanceof GridIoMessage : msg;
+
+            if (((GridIoMessage)msg).message() instanceof GridDhtAtomicAbstractUpdateRequest) {
+                U.printStacktrace("NioOperationFuture#onAckReceived");
+
+                Message req = ((GridIoMessage)msg).message();
+
+                System.err.println(">>>>>> NioOperationFuture#onAckReceived: " + req.getClass().getName() + "@" + Integer.toHexString(req.hashCode()));
+            }
 
             ((Message)msg).onAckReceived();
         }

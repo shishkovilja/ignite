@@ -22,8 +22,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteCommonsSystemProperties;
 import org.apache.ignite.internal.util.typedef.F;
@@ -333,5 +336,18 @@ public abstract class CommonUtils {
             return 1;
 
         return 1 << (32 - Integer.numberOfLeadingZeros(v - 1));
+    }
+
+    public static void printStacktrace(String pref) {
+        String fullPref = ">>>>>> " + pref + ": ";
+
+        String stacktrace = Arrays.stream(Thread.currentThread().getStackTrace())
+            .map(Objects::toString)
+            .map(s -> "\t" + s)
+            .collect(Collectors.joining(nl()));
+
+        System.err.println(fullPref +
+            Thread.currentThread().getName() + nl() +
+            stacktrace);
     }
 }

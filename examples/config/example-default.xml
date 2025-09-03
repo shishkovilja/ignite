@@ -61,7 +61,7 @@
                     -->
                     <!-- Uncomment static IP finder to enable static-based discovery of initial nodes. -->
                     <!--<bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder">-->
-                    <bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.multicast.TcpDiscoveryMulticastIpFinder">
+                    <bean class="org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder">
                         <property name="addresses">
                             <list>
                                 <!-- In distributed environment, replace with actual host IP address. -->
@@ -81,7 +81,7 @@
                         <property name="initialSize" value="#{1.25 * 1024 * 1024 * 1024}"/>
                         <property name="maxSize" value="#{1.25 * 1024 * 1024 * 1024}"/>
                         <property name="pageEvictionMode" value="RANDOM_LRU"/>
-                        <property name="emptyPagesPoolSize" value="10000" />
+                        <property name="emptyPagesPoolSize" value="32767" />
                     </bean>
                 </property>
             </bean>
@@ -97,6 +97,7 @@
                     <property name="cacheMode" value="PARTITIONED"/>
                     <property name="atomicityMode" value="ATOMIC"/>
                     <property name="backups" value="1"/>
+                    <property name="writeSynchronizationMode" value="FULL_ASYNC"/>
                 </bean>
             </list>
         </property>
@@ -104,14 +105,13 @@
 
     <!--  Template for all example cache configurations.  -->
     <bean id="cache-template" abstract="true" class="org.apache.ignite.configuration.CacheConfiguration">
-<!--        <property name="nearConfiguration">-->
-<!--            <bean class="org.apache.ignite.configuration.NearCacheConfiguration">-->
-<!--                <property name="nearStartSize" value="30000"/>-->
-<!--                <property name="nearEvictionPolicyFactory">-->
-<!--                    <bean class="org.apache.ignite.cache.eviction.lru.LruEvictionPolicyFactory">-->
-<!--                        <property name="maxMemorySize" value="#{1.25 * 1024 * 1024 * 1024}"/>-->
-<!--                    </bean>-->
-<!--                </property>-->
+<!--        &lt;!&ndash; Enabling on-heap caching for this distributed cache. &ndash;&gt;-->
+<!--        <property name="onheapCacheEnabled" value="true"/>-->
+
+<!--        <property name="evictionPolicyFactory">-->
+<!--            &lt;!&ndash; LRU eviction policy. &ndash;&gt;-->
+<!--            <bean class="org.apache.ignite.cache.eviction.lru.LruEvictionPolicyFactory">-->
+<!--                <property name="maxMemorySize" value="#{4 * 1024 * 1024 * 1024}"/>-->
 <!--            </bean>-->
 <!--        </property>-->
     </bean>

@@ -20,6 +20,7 @@ package org.apache.ignite.spi.communication.tcp.messages;
 import java.nio.ByteBuffer;
 import org.apache.ignite.internal.IgniteCodeGeneratingFail;
 import org.apache.ignite.internal.util.typedef.internal.S;
+import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.plugin.extensions.communication.Message;
 import org.apache.ignite.plugin.extensions.communication.MessageReader;
 import org.apache.ignite.plugin.extensions.communication.MessageWriter;
@@ -63,6 +64,8 @@ public class RecoveryLastReceivedMessage implements Message {
      */
     public RecoveryLastReceivedMessage(long rcvCnt) {
         this.rcvCnt = rcvCnt;
+
+        U.printStacktrace("RecoveryLastReceivedMessage(" + rcvCnt + ")");
     }
 
     /**
