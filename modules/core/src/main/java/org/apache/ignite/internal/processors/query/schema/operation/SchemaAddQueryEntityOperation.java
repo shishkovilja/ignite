@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.cache.QueryEntity;
+import org.apache.ignite.internal.Marshalable;
 import org.apache.ignite.internal.Order;
 import org.apache.ignite.internal.util.typedef.internal.U;
 
@@ -35,18 +36,15 @@ public class SchemaAddQueryEntityOperation extends SchemaAbstractOperation {
     private static final long serialVersionUID = 0L;
 
     /** */
-    private Collection<QueryEntity> entities;
-
-    /** Serialized form of query entities. */
-    @Order(value = 0, method = "queryEntitiesBytes")
-    transient byte[] qryEntitiesBytes;
+    @Marshalable
+    Collection<QueryEntity> entities;
 
     /** */
-    @Order(1)
+    @Order(0)
     int qryParallelism;
 
     /** */
-    @Order(2)
+    @Order(1)
     boolean sqlEscape;
 
     /** */

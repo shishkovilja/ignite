@@ -84,6 +84,11 @@ public class MessageProcessor extends AbstractProcessor {
      * Processes all classes implementing the {@code Message} interface and generates corresponding serializer code.
      */
     @Override public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (roundEnv.errorRaised())
+            return true;
+
+//        System.out.println(">>>>>>");
+
         TypeMirror msgType = processingEnv.getElementUtils().getTypeElement(MESSAGE_INTERFACE).asType();
         TypeMirror handshakeWaitMsgType = processingEnv.getElementUtils().getTypeElement(HANDSHAKE_WAIT_MESSAGE).asType();
 

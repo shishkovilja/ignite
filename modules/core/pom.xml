@@ -384,6 +384,7 @@
                 <configuration>
                     <generatedSourcesDirectory>${ignite.generated.source.path}</generatedSourcesDirectory>
                     <annotationProcessors>
+                        <annotationProcessor>org.apache.ignite.internal.MarshalableFieldsProcessor</annotationProcessor>
                         <annotationProcessor>org.apache.ignite.internal.MessageProcessor</annotationProcessor>
                         <annotationProcessor>org.apache.ignite.internal.idto.IgniteDataTransferObjectProcessor</annotationProcessor>
                         <annotationProcessor>org.apache.ignite.internal.systemview.SystemViewRowAttributeWalkerProcessor</annotationProcessor>
