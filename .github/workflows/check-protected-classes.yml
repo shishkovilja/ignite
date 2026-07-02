@@ -139,7 +139,7 @@ jobs:
               status: 'completed',
               conclusion: 'neutral',
               output: {
-                title: 'Possible compatibility issues',
+                title: 'Possible compatibility issues. Please, check rolling upgrade cases',
                 summary: [
                   'This PR modifies protected classes (with **Order** annotation).',
                   'Changes to these classes can break rolling upgrade compatibility.',
