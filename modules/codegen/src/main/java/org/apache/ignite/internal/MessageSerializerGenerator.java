@@ -41,6 +41,7 @@ import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import org.apache.ignite.internal.systemview.SystemViewRowAttributeWalkerProcessor;
+import org.apache.ignite.internal.util.typedef.F;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.ignite.internal.MessageProcessor.CACHE_OBJECT_CLS;
@@ -65,6 +66,9 @@ public class MessageSerializerGenerator extends MessageGenerator {
 
     /** */
     private final List<String> read = new ArrayList<>();
+
+    /** Class fields, which should come before ordinary class fields. */
+    private final Set<String> headingClsFields = new TreeSet<>();
 
     /** Class-field declarations (enum mappers/values, collection descriptors) emitted at the top of the generated class. */
     private final Set<String> clsFields = new TreeSet<>();
@@ -197,7 +201,7 @@ public class MessageSerializerGenerator extends MessageGenerator {
     /** @return Writer/reader call expression for {@code field}. */
     private String callExpr(VariableElement field, boolean write) throws Exception {
         if (enumType(env, field.asType())) {
-            String prefix = registerEnumMapper(field);
+            String prefix = registerEnumMapper(field, field.asType());
 
             boolean custMapper = field.getAnnotation(CustomMapper.class) != null;
 
@@ -361,8 +365,8 @@ public class MessageSerializerGenerator extends MessageGenerator {
      *
      * @return Class-field name prefix derived from the enum type name.
      */
-    private String registerEnumMapper(VariableElement field) {
-        Element enumElem = env.getTypeUtils().asElement(field.asType());
+    private String registerEnumMapper(VariableElement field, TypeMirror fieldType) {
+        Element enumElem = env.getTypeUtils().asElement(fieldType);
 
         imports.add(enumElem.toString());
 
@@ -382,12 +386,12 @@ public class MessageSerializerGenerator extends MessageGenerator {
 
             String simpleName = fullMapperName.substring(fullMapperName.lastIndexOf('.') + 1);
 
-            clsFields.add("private final EnumMapper<" + enumName + "> " + prefix + "Mapper = new " + simpleName + "();");
+            headingClsFields.add("private static final EnumMapper<" + enumName + "> " + prefix + "Mapper = new " + simpleName + "();");
         }
         else {
             imports.add(DLFT_ENUM_MAPPER_CLS);
 
-            clsFields.add("private final " + enumName + "[] " + prefix + "Vals = " + enumName + ".values();");
+            headingClsFields.add("private static final " + enumName + "[] " + prefix + "Vals = " + enumName + ".values();");
         }
 
         return prefix;
@@ -424,7 +428,7 @@ public class MessageSerializerGenerator extends MessageGenerator {
 
     /** */
     private String messageCollectionItemTypes(VariableElement field, TypeMirror type) throws Exception {
-        String desc = messageCollectionItemTypeDescriptor(type);
+        String desc = messageCollectionItemTypeDescriptor(type, field);
         String descName = field.getSimpleName() + "CollDesc";
         String typeName = desc.substring(desc.indexOf(' ') + 1, desc.indexOf('('));
 
@@ -434,7 +438,7 @@ public class MessageSerializerGenerator extends MessageGenerator {
     }
 
     /** */
-    private String messageCollectionItemTypeDescriptor(TypeMirror type) throws Exception {
+    private String messageCollectionItemTypeDescriptor(TypeMirror type, VariableElement field) throws Exception {
         imports.add("org.apache.ignite.plugin.extensions.communication.MessageCollectionItemType");
 
         if (type.getKind() == TypeKind.ARRAY) {
@@ -463,7 +467,7 @@ public class MessageSerializerGenerator extends MessageGenerator {
 
             imports.add("org.apache.ignite.plugin.extensions.communication.MessageArrayType");
 
-            return "new MessageArrayType(" + messageCollectionItemTypeDescriptor(componentType) + ", " + clazz + ")";
+            return "new MessageArrayType(" + messageCollectionItemTypeDescriptor(componentType, field) + ", " + clazz + ")";
         }
         else if (assignableFrom(erasedType(type), type(Map.class.getName()))) {
             imports.add("org.apache.ignite.plugin.extensions.communication.MessageMapType");
@@ -473,8 +477,8 @@ public class MessageSerializerGenerator extends MessageGenerator {
             assert typeArgs.size() == 2;
 
             return "new MessageMapType(" +
-                messageCollectionItemTypeDescriptor(typeArgs.get(0)) + ", " +
-                messageCollectionItemTypeDescriptor(typeArgs.get(1)) + ", " +
+                messageCollectionItemTypeDescriptor(typeArgs.get(0), field) + ", " +
+                messageCollectionItemTypeDescriptor(typeArgs.get(1), field) + ", " +
                 assignableFrom(erasedType(type), type(LinkedHashMap.class.getName())) + ")";
         }
         else if (assignableFrom(erasedType(type), type(Collection.class.getName()))) {
@@ -485,8 +489,20 @@ public class MessageSerializerGenerator extends MessageGenerator {
             assert typeArgs.size() == 1;
 
             return "new MessageCollectionType(" +
-                messageCollectionItemTypeDescriptor(typeArgs.get(0)) + ", " +
+                messageCollectionItemTypeDescriptor(typeArgs.get(0), field) + ", " +
                 assignableFrom(erasedType(type), type(Set.class.getName())) + ")";
+        }
+        else if (enumType(env, type)) {
+            imports.add("org.apache.ignite.plugin.extensions.communication.MessageEnumType");
+
+            String prefix = registerEnumMapper(field, type);
+            boolean custMapper = field.getAnnotation(CustomMapper.class) != null;
+
+            String encoder = (custMapper ? prefix + "Mapper" : "DefaultEnumMapper.INSTANCE") + "::encode";
+            String decoder = custMapper ? prefix + "Mapper::decode)" :
+                "b -> DefaultEnumMapper.INSTANCE.decode(" + prefix + "Vals, b)";
+
+            return String.format("new MessageEnumType<>(%s, %s)", encoder, decoder);
         }
         else {
             imports.add("org.apache.ignite.plugin.extensions.communication.MessageItemType");
@@ -592,10 +608,10 @@ public class MessageSerializerGenerator extends MessageGenerator {
 
     /** Write serializer class fields: enum values, custom enum mappers, collection descriptors. */
     private void writeClassFields(Writer writer) throws IOException {
-        if (clsFields.isEmpty())
+        if (headingClsFields.isEmpty() && clsFields.isEmpty())
             return;
 
-        for (String field: clsFields) {
+        for (String field: F.concat(false, headingClsFields, clsFields)) {
             writer.write(indentedLine(METHOD_JAVADOC));
             writer.write(NL);
             writer.write(indentedLine(field));
