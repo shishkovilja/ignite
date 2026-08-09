@@ -17,6 +17,7 @@
 
 package org.apache.ignite.testsuites;
 
+import org.apache.ignite.internal.cache.query.QueryIndexMessageSerializationTest;
 import org.apache.ignite.internal.processors.cache.index.RejoinWithLostDynamicDdlTest;
 import org.apache.ignite.internal.processors.cache.index.StaticCacheDdlKeepStaticConfigurationTest;
 import org.apache.ignite.internal.processors.cache.index.StaticCacheDdlTest;
@@ -92,6 +93,7 @@ import org.junit.runners.Suite;
     LocalContinuousQueryWithNodeFailureTest.class,
     ContinuousQueryUserCodeExceptionTest.class,
     QueryEntityMessageSerializationTest.class,
+    QueryIndexMessageSerializationTest.class,
 })
 public class IgniteCacheQuerySelfTestSuite6 {
 }
