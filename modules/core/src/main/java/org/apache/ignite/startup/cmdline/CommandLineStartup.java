@@ -47,6 +47,7 @@ import org.apache.ignite.internal.processors.cache.persistence.GridCacheOffheapM
 import org.apache.ignite.internal.processors.cache.persistence.freelist.PagesList;
 import org.apache.ignite.internal.processors.cache.query.continuous.CacheContinuousQueryEventBuffer;
 import org.apache.ignite.internal.processors.cache.query.continuous.CacheContinuousQueryHandler;
+import org.apache.ignite.internal.processors.odbc.ClientListenerProcessor;
 import org.apache.ignite.internal.util.GridConfigurationFinder;
 import org.apache.ignite.internal.util.OffheapReadWriteLock;
 import org.apache.ignite.internal.util.lang.GridTuple3;
@@ -97,7 +98,8 @@ public final class CommandLineStartup {
         CacheContinuousQueryEventBuffer.class,
         CacheContinuousQueryHandler.class,
         OffheapReadWriteLock.class,
-        TcpCommunicationConfiguration.class
+        TcpCommunicationConfiguration.class,
+        ClientListenerProcessor.class
     ));
 
     static {

@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.ignite.IgniteCheckedException;
+import org.apache.ignite.IgniteSystemProperties;
 import org.apache.ignite.configuration.ThinClientConfiguration;
 import org.apache.ignite.internal.GridKernalContext;
 import org.apache.ignite.internal.binary.BinaryReaderEx;
@@ -41,6 +42,10 @@ import org.apache.ignite.internal.util.typedef.internal.U;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.ignite.internal.processors.odbc.ClientListenerNioListener.THIN_CLIENT;
+import static org.apache.ignite.internal.processors.odbc.ClientListenerProcessor.DFLT_COMPUTE_TASKS_WARN_INTERVAL_MS;
+import static org.apache.ignite.internal.processors.odbc.ClientListenerProcessor.DFLT_COMPUTE_TASKS_WARN_THRESHOLD;
+import static org.apache.ignite.internal.processors.odbc.ClientListenerProcessor.IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_INTERVAL_MS;
+import static org.apache.ignite.internal.processors.odbc.ClientListenerProcessor.IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_THRESHOLD;
 import static org.apache.ignite.internal.processors.platform.client.ClientBitmaskFeature.USER_ATTRIBUTES;
 import static org.apache.ignite.internal.processors.platform.client.ClientProtocolVersionFeature.AUTHORIZATION;
 import static org.apache.ignite.internal.processors.platform.client.ClientProtocolVersionFeature.BITMAP_FEATURES;
@@ -131,6 +136,15 @@ public class ClientConnectionContext extends ClientListenerAbstractConnectionCon
     /** Active compute tasks count. */
     private final AtomicInteger activeTasksCnt = new AtomicInteger();
 
+    /** Number of active compute tasks which triggers a WARN for a connection. */
+    private final int computeTasksWarnThreshold;
+
+    /** Minimum interval between WARN messages about high active compute tasks count for one connection. */
+    private final long computeTasksWarnIntervalMs;
+
+    /** Timestamp of the last WARN about high active compute tasks count. */
+    private final AtomicLong lastComputeLimitWarnTs = new AtomicLong();
+
     /**
      * Ctor.
      *
@@ -151,6 +165,17 @@ public class ClientConnectionContext extends ClientListenerAbstractConnectionCon
         this.maxCursors = maxCursors;
         maxActiveTxCnt = thinCfg.getMaxActiveTxPerConnection();
         maxActiveComputeTasks = thinCfg.getMaxActiveComputeTasksPerConnection();
+
+        int warnThresholdPct = IgniteSystemProperties.getInteger(IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_THRESHOLD,
+            DFLT_COMPUTE_TASKS_WARN_THRESHOLD);
+
+        warnThresholdPct = Math.max(0, Math.min(100, warnThresholdPct));
+
+        computeTasksWarnThreshold = (int)((long)maxActiveComputeTasks * warnThresholdPct / 100);
+
+        computeTasksWarnIntervalMs = Math.max(0, IgniteSystemProperties.getLong(
+            IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_INTERVAL_MS, DFLT_COMPUTE_TASKS_WARN_INTERVAL_MS));
+
         resReg = new ClientResourceRegistry(ctx.log(ClientResourceRegistry.class));
     }
 
@@ -349,13 +374,37 @@ public class ClientConnectionContext extends ClientListenerAbstractConnectionCon
                     "To enable it set up the ThinClientConfiguration.MaxActiveComputeTasksPerConnection property.");
         }
 
-        if (activeTasksCnt.incrementAndGet() > maxActiveComputeTasks) {
+        int activeTasksCnt0 = activeTasksCnt.incrementAndGet();
+
+        if (activeTasksCnt0 > computeTasksWarnThreshold)
+            logActiveTasksWarning(activeTasksCnt0);
+
+        if (activeTasksCnt0 > maxActiveComputeTasks) {
             activeTasksCnt.decrementAndGet();
 
             throw new IgniteClientException(ClientStatus.TOO_MANY_COMPUTE_TASKS, "Active compute tasks per connection " +
                 "limit (" + maxActiveComputeTasks + ") exceeded. To start a new task you need to wait for some of " +
                 "currently active tasks complete. To change the limit set up the " +
                 "ThinClientConfiguration.MaxActiveComputeTasksPerConnection property.");
+        }
+    }
+
+    /**
+     * Logs a rate-limited WARN when the active compute tasks count exceeds the warning threshold.
+     *
+     * @param activeTasksCnt0 Number of active compute tasks that triggered the warning.
+     */
+    private void logActiveTasksWarning(int activeTasksCnt0) {
+        long lastWarnTs = lastComputeLimitWarnTs.get();
+
+        if (U.currentTimeMillis() > lastWarnTs + computeTasksWarnIntervalMs
+            && lastComputeLimitWarnTs.compareAndSet(lastWarnTs, U.currentTimeMillis())) {
+            ctx.log(ClientConnectionContext.class).warning(
+                "Active compute tasks per connection warning threshold exceeded " +
+                    "[connId=" + connectionId() +
+                    ", activeTasks=" + activeTasksCnt0 +
+                    ", limit=" + maxActiveComputeTasks +
+                    ", threshold=" + computeTasksWarnThreshold + ']');
         }
     }
 

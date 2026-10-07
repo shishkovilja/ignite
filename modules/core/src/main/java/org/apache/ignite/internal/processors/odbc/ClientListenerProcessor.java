@@ -36,6 +36,7 @@ import javax.management.ObjectName;
 import javax.net.ssl.SSLContext;
 import org.apache.ignite.IgniteCheckedException;
 import org.apache.ignite.IgniteException;
+import org.apache.ignite.SystemProperty;
 import org.apache.ignite.configuration.ClientConnectorConfiguration;
 import org.apache.ignite.configuration.IgniteConfiguration;
 import org.apache.ignite.configuration.OdbcConfiguration;
@@ -108,6 +109,47 @@ public class ClientListenerProcessor extends GridProcessorAdapter {
 
     /** Cancel counter. For testing purposes only. */
     public static final AtomicLong CANCEL_COUNTER = new AtomicLong(0);
+
+    /**
+     * Warning threshold in percents of the {@code maxActiveComputeTasksPerConnection} limit. When the number of active
+     * compute tasks of a thin client connection exceeds this threshold, a rate-limited WARN is logged on the server
+     * node.
+     */
+    @SystemProperty(
+        value = "Warning threshold in percents of the maxActiveComputeTasksPerConnection limit. " +
+            "When the number of active compute tasks of a thin client connection exceeds this threshold, " +
+            "a rate-limited WARN is logged on the server node",
+        type = Integer.class,
+        defaults = "" + DFLT_COMPUTE_TASKS_WARN_THRESHOLD)
+    public static final String IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_THRESHOLD =
+        "IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_THRESHOLD";
+
+    /**
+     * Default warning threshold in percents of the active compute tasks limit when a WARN is logged for a connection.
+     *
+     * @see #IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_THRESHOLD
+     */
+    public static final int DFLT_COMPUTE_TASKS_WARN_THRESHOLD = 80;
+
+    /**
+     * Minimum interval in milliseconds between WARN messages about exceeding the active compute tasks warning threshold
+     * for one connection. Used to avoid log flooding with repeated limit exceeding attempts of a single client.
+     */
+    @SystemProperty(
+        value = "Minimum interval in milliseconds between WARN messages about exceeding the active compute tasks " +
+            "warning threshold for a thin client connection",
+        type = Long.class,
+        defaults = "" + DFLT_COMPUTE_TASKS_WARN_INTERVAL_MS)
+    public static final String IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_INTERVAL_MS =
+        "IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_INTERVAL_MS";
+
+    /**
+     * Default minimum interval in milliseconds between WARN messages about exceeding the active compute tasks warning
+     * threshold for a connection.
+     *
+     * @see #IGNITE_THIN_CLIENT_COMPUTE_TASKS_WARN_INTERVAL_MS
+     */
+    public static final long DFLT_COMPUTE_TASKS_WARN_INTERVAL_MS = 60_000L;
 
     /** Default TCP direct buffer flag. */
     private static final boolean DFLT_TCP_DIRECT_BUF = true;
